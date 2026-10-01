@@ -1,0 +1,26 @@
+# Development: docker compose up --build  ->  http://localhost:5173
+# Production:  docker compose --profile prod up --build prod  ->  http://localhost:3001
+services:
+  app:
+    build: { context: ., target: dev }
+    ports:
+      - "5173:5173"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/index.html:/app/frontend/index.html
+      
+    restart: unless-stopped
+
+  prod:
+    profiles: ["prod"]
+    build: { context: ., target: prod }
+    ports:
+      - "3001:3001"
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped

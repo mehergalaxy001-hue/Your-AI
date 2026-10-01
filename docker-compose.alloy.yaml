@@ -1,0 +1,14 @@
+# Alloy sandbox: host networking, Vite on 5173 proxies /api to Express on 3001.
+services:
+  app:
+    image: node:22-bookworm
+    working_dir: /workspace
+    network_mode: host
+    volumes:
+      - .:/workspace
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      IS_ALLOY: ${IS_ALLOY:-false}
+    command: bash -lc "npm install && npm run dev"

@@ -1,0 +1,19 @@
+{
+  "name": "your-ai",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Your-AI — a full-stack streaming AI chat app (React + Vite + Express + OpenAI)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
+    "build": "npm run build -w frontend && npm run build -w backend",
+    "start": "npm run start -w backend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
