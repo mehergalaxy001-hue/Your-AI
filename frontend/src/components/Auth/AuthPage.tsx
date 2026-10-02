@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { navigate } from "../../lib/router";
+import "../Landing/landing.css";
 import { authErrorMessage, useAuth } from "../../context/AuthContext";
 import { Logo } from "../UI/Icons";
 
@@ -14,9 +16,13 @@ const GoogleIcon = () => (
 );
 
 /** Galaxy AI sign-in page backed by Firebase Authentication. */
-export function AuthPage() {
+export function AuthPage({ mode: initialMode = "signin" }: { mode?: Mode }) {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
+  useEffect(() => setMode(initialMode), [initialMode]);
+  useEffect(() => {
+    document.title = initialMode === "signup" ? "Sign up · Galaxy AI" : "Log in · Galaxy AI";
+  }, [initialMode]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +31,7 @@ export function AuthPage() {
   const [info, setInfo] = useState<string | null>(null);
 
   const go = (m: Mode) => {
+    if (m !== "reset") navigate(m === "signup" ? "/signup" : "/login");
     setMode(m);
     setError(null);
     setInfo(null);
@@ -54,6 +61,10 @@ export function AuthPage() {
         await resetPassword(email);
         setInfo("Password reset email sent. Please check your inbox.");
       } else if (mode === "signup") {
+        if (!name.trim()) {
+          setError("Please enter your name.");
+          return;
+        }
         if (password.length < 6) {
           setError("Password is too weak. Use at least 6 characters.");
           return;
@@ -71,14 +82,16 @@ export function AuthPage() {
   };
 
   return (
-    <div className="auth">
-      <div className="auth-card">
-        <div className="auth-brand">
+    <div className="auth lp">
+      <div className="lp-bg" aria-hidden><span className="lp-orb a" /><span className="lp-orb b" /></div>
+      <div className="auth-card glass">
+        <a className="auth-brand" href="/" onClick={(e) => { e.preventDefault(); navigate("/"); }} aria-label="Galaxy AI home">
           <Logo size={52} />
           <span>Galaxy AI</span>
-        </div>
-        <h1>{mode === "signup" ? "Create your account" : mode === "reset" ? "Reset your password" : "How can I help you today?"}</h1>
-        {mode === "signin" && <p className="muted">Sign in to continue to Galaxy AI.</p>}
+        </a>
+        <h1>{mode === "signup" ? "Create your Galaxy AI account" : mode === "reset" ? "Reset your password" : "Welcome back"}</h1>
+        {mode === "signin" && <p className="muted">Log in to continue to Galaxy AI.</p>}
+        {mode === "signup" && <p className="muted">Start chatting, searching and creating in seconds.</p>}
         {mode === "reset" && <p className="muted">Enter your email and we'll send you a link to reset your password.</p>}
 
         {mode !== "reset" && (
@@ -93,7 +106,7 @@ export function AuthPage() {
         <form className="auth-form" onSubmit={submit} noValidate>
           {mode === "signup" && (
             <label>
-              <span>Name (optional)</span>
+              <span>Name</span>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Your name" maxLength={80} />
             </label>
           )}
@@ -118,7 +131,7 @@ export function AuthPage() {
           {info && <p className="status ok" role="status">{info}</p>}
           <button className="btn primary auth-submit" type="submit" disabled={!!busy || !email || (mode !== "reset" && !password)}>
             {busy === "email" && <span className="spinner sm" aria-hidden />}
-            {mode === "reset" ? "Send reset email" : mode === "signup" ? "Create account" : "Continue with email"}
+            {mode === "reset" ? "Send reset email" : mode === "signup" ? "Create account" : "Log in"}
           </button>
         </form>
 
@@ -126,13 +139,13 @@ export function AuthPage() {
           {mode === "signin" && (
             <>
               <button className="link-btn" onClick={() => go("reset")}>Forgot password?</button>
-              <span className="muted">Don't have an account? <button className="link-btn" onClick={() => go("signup")}>Create account</button></span>
+              <span className="muted">Don't have an account? <button className="link-btn" onClick={() => go("signup")}>Sign up</button></span>
             </>
           )}
           {mode === "signup" && (
-            <span className="muted">Already have an account? <button className="link-btn" onClick={() => go("signin")}>Sign in</button></span>
+            <span className="muted">Already have an account? <button className="link-btn" onClick={() => go("signin")}>Log in</button></span>
           )}
-          {mode === "reset" && <button className="link-btn" onClick={() => go("signin")}>Back to sign in</button>}
+          {mode === "reset" && <button className="link-btn" onClick={() => go("signin")}>Back to log in</button>}
         </div>
       </div>
     </div>
