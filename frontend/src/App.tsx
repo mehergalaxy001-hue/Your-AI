@@ -10,6 +10,7 @@ import { ChatView } from "./components/Chat/ChatView";
 import { Composer, type ComposerHandle } from "./components/Composer/Composer";
 import { ConfirmDialog, type ConfirmRequest } from "./components/UI/Modal";
 import { AlertIcon, Logo } from "./components/UI/Icons";
+import { CreateView } from "./components/Create/CreateView";
 
 const SettingsModal = lazy(() => import("./components/Settings/SettingsModal"));
 
@@ -28,6 +29,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const [view, setView] = useState<"chat" | "create">("chat");
+  const [createMounted, setCreateMounted] = useState(false);
   const composer = useRef<ComposerHandle>(null);
 
   const loadConfig = useCallback(() => {
@@ -60,6 +63,7 @@ export default function App() {
   const closeOnMobile = useCallback(() => isMobile() && setSidebarOpen(false), []);
 
   const newChat = useCallback(() => {
+    setView("chat");
     store.setActiveId(null);
     closeOnMobile();
     requestAnimationFrame(() => composer.current?.focus());
@@ -78,6 +82,7 @@ export default function App() {
 
   const onSelect = useCallback(
     (id: string) => {
+      setView("chat");
       store.setActiveId(id);
       closeOnMobile();
     },
@@ -163,6 +168,11 @@ export default function App() {
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const openCreate = useCallback(() => {
+    setView("create");
+    setCreateMounted(true);
+    closeOnMobile();
+  }, [closeOnMobile]);
 
   const notConfigured = !!cfg && !cfg.configured;
   const models = useMemo(() => cfg?.models ?? [], [cfg]);
@@ -195,9 +205,17 @@ export default function App() {
         onRename={store.rename}
         onDelete={onDelete}
         onDeleteAll={onDeleteAll}
+        createActive={view === "create"}
+        onCreate={openCreate}
       />
 
-      <main className="main">
+      {createMounted && (
+        <div className="view" hidden={view !== "create"}>
+          <CreateView sidebarOpen={sidebarOpen} onOpenSidebar={openSidebar} />
+        </div>
+      )}
+
+      <main className="main" hidden={view !== "chat"}>
         <ChatHeader
           title={title}
           sidebarOpen={sidebarOpen}

@@ -3,6 +3,9 @@ import path from "node:path";
 import express, { type ErrorRequestHandler } from "express";
 import { config } from "./config.js";
 import { chatRouter } from "./api/chat/router.js";
+import { imageRouter } from "./api/generate-image/router.js";
+import { videoRouter } from "./api/generate-video/router.js";
+import { mediaRouter } from "./api/media/router.js";
 
 const app = express();
 app.set("trust proxy", "loopback");
@@ -12,6 +15,9 @@ app.use(express.json({ limit: "40mb" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api", chatRouter);
+app.use("/api", imageRouter);
+app.use("/api", videoRouter);
+app.use("/api", mediaRouter);
 app.use("/api", (_req, res) => res.status(404).json({ error: { code: "not_found", message: "Not found" } }));
 
 // In production, serve the built frontend from the same origin.

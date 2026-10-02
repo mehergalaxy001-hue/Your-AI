@@ -50,6 +50,25 @@ Browser (React) ──POST /api/chat (Server-Sent Events)──▶ Express ─�
   - The Markdown/code-highlighting bundle and the Settings dialog load separately (lazy-loaded).
 - **Accessibility**: keyboard-navigable menus and dialogs (focus stays inside an open dialog, and Esc closes it), ARIA labels, visible focus outlines, a skip link, a live region for messages, and reduced-motion support.
 
+## Create (image & video generation)
+Use **Create** in the sidebar to open the generation workspace, which has **Image** and **Video** modes. Every request goes through the backend, so provider keys stay on the server.
+
+| | Default provider | Key | Notes |
+|---|---|---|---|
+| Image | `pollinations` (Pollinations.ai) | optional `IMAGE_API_KEY` | Works without a key on Pollinations' free anonymous tier, which is rate-limited and may add a watermark. Set `IMAGE_PROVIDER=gemini` to use Gemini image models instead (these need a billing-enabled key). |
+| Video | `veo` (Google Veo via the Gemini API) | `VIDEO_API_KEY`, or `GEMINI_API_KEY` if that is unset | Videos are generated as background jobs. You can also supply a starting image (image-to-video). **Requires billing**: free-tier keys get a quota error. |
+
+- Endpoints:
+  - `POST /api/generate-image`
+  - `POST /api/generate-video`
+  - `GET /api/generate-video/:jobId`
+  - `GET /api/media-config` (what the configured providers support)
+  - `GET /api/media/:file` (the generated file)
+- Generated files are saved to `backend/data/media` (this folder is git-ignored) and deleted after `MEDIA_RETENTION_HOURS`. If a link has expired, the app says so instead of showing a broken image or video.
+- The UI only shows options the provider actually supports: aspect ratio, image upload, and a progress percentage only if the provider reports one. Cancel is not shown because Veo has no cancel endpoint.
+- Provider and model settings are in `backend/src/config/aiProviders.ts`. Provider code is in `backend/src/media/{image,video}/`.
+- Recent creations are kept in `localStorage`. Only the prompt, date and file URL are saved there, not the image or video itself.
+
 ## Project structure
 ```
 backend/src/

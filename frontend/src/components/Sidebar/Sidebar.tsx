@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import type { ConversationMeta } from "../../types";
 import { groupLabel } from "../../utils/format";
-import { ComposeIcon, EditIcon, Logo, SearchIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
+import { ComposeIcon, EditIcon, SparkleIcon, Logo, SearchIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
 
 interface Props {
   metas: ConversationMeta[];
@@ -14,6 +14,8 @@ interface Props {
   onRename: (id: string, title: string) => void;
   onDelete: (id: string, title: string) => void;
   onDeleteAll: () => void;
+  createActive: boolean;
+  onCreate: () => void;
 }
 
 function SidebarImpl(p: Props) {
@@ -59,6 +61,10 @@ function SidebarImpl(p: Props) {
           <kbd className="kbd">Ctrl ⇧ O</kbd>
         </button>
 
+        <button className={`side-link create-link ${p.createActive ? "active" : ""}`} onClick={p.onCreate} aria-current={p.createActive ? "page" : undefined}>
+          <SparkleIcon width={16} height={16} /> Create
+        </button>
+
         <div className="search">
           <SearchIcon width={16} height={16} />
           <input
@@ -102,7 +108,7 @@ function SidebarImpl(p: Props) {
                         aria-label="Conversation title"
                       />
                     ) : (
-                      <div className={`chat-item ${c.id === p.activeId ? "active" : ""}`}>
+                      <div className={`chat-item ${c.id === p.activeId && !p.createActive ? "active" : ""}`}>
                         <button
                           className="chat-title"
                           onClick={() => p.onSelect(c.id)}
