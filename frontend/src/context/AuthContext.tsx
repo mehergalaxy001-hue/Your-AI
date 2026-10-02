@@ -30,13 +30,15 @@ const AuthContext = createContext<AuthValue | null>(null);
 /** Friendly messages for Firebase Auth error codes (raw errors are never shown). */
 export function authErrorMessage(e: unknown): string | null {
   const code = e instanceof FirebaseError ? e.code : "";
+  // Log only the error code (never tokens/keys) to help the site owner diagnose configuration.
+  if (code) console.warn(`[auth] Firebase error: ${code}`);
   switch (code) {
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
     case "auth/user-cancelled":
       return null; // user intentionally dismissed — not an error
     case "auth/popup-blocked":
-      return "The sign-in popup was blocked. Redirecting to Google instead…";
+      return "Your browser blocked the sign-in popup. Allow popups for this site and try again.";
     case "auth/account-exists-with-different-credential":
       return "An account already exists with this email using a different sign-in method. Try signing in with email.";
     case "auth/network-request-failed":
@@ -62,7 +64,16 @@ export function authErrorMessage(e: unknown): string | null {
       return "This domain isn't authorized for sign-in. Add it in Firebase Console → Authentication → Settings → Authorized domains.";
     case "auth/api-key-not-valid.-please-pass-a-valid-api-key.":
     case "auth/invalid-api-key":
-      return "Sign-in is misconfigured (invalid Firebase API key). Please contact the site owner.";
+      return "Sign-in isn't available right now: the site's Firebase configuration is invalid. The site owner needs to update the Firebase API key.";
+    case "auth/configuration-not-found":
+      return "Sign-in isn't set up for this site yet. The site owner needs to enable Firebase Authentication.";
+    case "auth/admin-restricted-operation":
+      return "New sign-ups are currently disabled for this site.";
+    case "auth/requests-from-referer-are-blocked":
+    case "auth/requests-to-this-api-identitytoolkit-method-are-blocked.":
+      return "Sign-in is blocked by the site's API key restrictions. The site owner needs to allow this domain.";
+    case "auth/internal-error":
+      return "Firebase had a temporary problem. Please try again.";
     default:
       return "Something went wrong while signing in. Please try again.";
   }
