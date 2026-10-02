@@ -2,12 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import express, { type ErrorRequestHandler } from "express";
 import { config } from "./config.js";
-import { chatRouter } from "./routes/chat.js";
+import { chatRouter } from "./api/chat/router.js";
 
 const app = express();
+app.set("trust proxy", "loopback");
 app.disable("x-powered-by");
 // Large enough for a few base64 images; validation enforces per-item limits.
-app.use(express.json({ limit: "24mb" }));
+app.use(express.json({ limit: "40mb" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api", chatRouter);
@@ -30,6 +31,7 @@ const onError: ErrorRequestHandler = (err, _req, res, _next) => {
 app.use(onError);
 
 app.listen(config.port, () => {
-  console.log(`Your-AI API listening on http://localhost:${config.port}`);
-  if (!config.apiKey) console.warn("OPENAI_API_KEY is not set — chat requests will return a setup error.");
+  console.log(`Galaxy AI API listening on http://localhost:${config.port}`);
+  if (config.provider) console.log(`AI provider: ${config.provider}`);
+  else console.warn("No GEMINI_API_KEY / OPENAI_API_KEY set — chat requests will return a setup error.");
 });

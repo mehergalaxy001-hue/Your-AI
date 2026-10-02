@@ -1,8 +1,8 @@
 {
-  "name": "your-ai",
+  "name": "galaxy-ai",
   "private": true,
   "version": "1.0.0",
-  "description": "Your-AI — a full-stack streaming AI chat app (React + Vite + Express + OpenAI)",
+  "description": "Galaxy AI — full-stack streaming AI chatbot (React + Vite + Express + Gemini/OpenAI)",
   "workspaces": [
     "backend",
     "frontend"

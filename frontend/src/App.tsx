@@ -1,207 +1,256 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Attachment, Message, ServerConfig } from "./types";
-import { useChats } from "./hooks/useChats";
-import { useTheme } from "./hooks/useTheme";
-import { ApiError, fetchConfig, streamChat, toWire } from "./lib/api";
-import { uid } from "./lib/storage";
-import { Sidebar } from "./components/Sidebar";
-import { Composer } from "./components/Composer";
-import { MessageItem } from "./components/MessageItem";
-import { Welcome } from "./components/Welcome";
-import { AlertIcon, ComposeIcon, Logo, MenuIcon, SidebarIcon } from "./components/Icons";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Limits, ServerConfig } from "./types";
+import { useConversations } from "./hooks/useConversations";
+import { useSettings } from "./hooks/useSettings";
+import { useChatEngine } from "./hooks/useChatEngine";
+import { fetchConfig } from "./services/api";
+import { Sidebar } from "./components/Sidebar/Sidebar";
+import { ChatHeader } from "./components/Chat/ChatHeader";
+import { ChatView } from "./components/Chat/ChatView";
+import { Composer, type ComposerHandle } from "./components/Composer/Composer";
+import { ConfirmDialog, type ConfirmRequest } from "./components/UI/Modal";
+import { AlertIcon, Logo } from "./components/UI/Icons";
 
-const MODEL_KEY = "yourai.model";
-const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+const SettingsModal = lazy(() => import("./components/Settings/SettingsModal"));
 
-const FALLBACK_LIMITS: ServerConfig["limits"] = {
-  maxMessages: 60, maxMessageChars: 32_000, maxAttachments: 4, maxImageBytes: 4 * 1024 * 1024, maxTextFileChars: 100_000,
+const FALLBACK_LIMITS: Limits = {
+  maxMessages: 80, maxMessageChars: 32_000, maxTotalChars: 240_000, maxAttachments: 5,
+  maxImageBytes: 5 * 1024 * 1024, maxPdfBytes: 10 * 1024 * 1024, maxTextFileChars: 120_000,
 };
+const mobileQuery = "(max-width: 768px)";
+const isMobile = () => window.matchMedia(mobileQuery).matches;
 
 export default function App() {
-  const { chats, active, activeId, setActiveId, createChat, appendMessages, patchMessage, renameChat, deleteChat, latest } = useChats();
-  const { pref, setPref } = useTheme();
+  const store = useConversations();
+  const { settings, set } = useSettings();
   const [cfg, setCfg] = useState<ServerConfig | null>(null);
   const [cfgError, setCfgError] = useState<string | null>(null);
-  const [model, setModel] = useState(() => localStorage.getItem(MODEL_KEY) ?? "");
   const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile());
-  const [generating, setGenerating] = useState<{ chatId: string; msgId: string } | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const busy = useRef(false); // synchronous guard against double submits
-  const scroller = useRef<HTMLDivElement>(null);
-  const stick = useRef(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const composer = useRef<ComposerHandle>(null);
 
-  useEffect(() => {
+  const loadConfig = useCallback(() => {
+    setCfgError(null);
     fetchConfig()
       .then((c) => {
         setCfg(c);
-        setModel((m) => (c.models.includes(m) ? m : c.defaultModel));
+        if (!c.models.some((m) => m.id === settings.model)) set("model", c.defaultModel);
       })
       .catch((e: Error) => setCfgError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(loadConfig, [loadConfig]);
+
+  // Close drawer when switching to mobile; reopen on desktop.
+  useEffect(() => {
+    const mq = window.matchMedia(mobileQuery);
+    const onChange = () => setSidebarOpen(!mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  useEffect(() => {
-    if (model) localStorage.setItem(MODEL_KEY, model);
-  }, [model]);
-
-  // Auto-scroll while the user is near the bottom.
-  useLayoutEffect(() => {
-    const el = scroller.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [active?.messages]);
-
-  useEffect(() => {
-    stick.current = true;
-  }, [activeId]);
-
   const limits = cfg?.limits ?? FALLBACK_LIMITS;
+  const onConfigError = useCallback((code: string) => {
+    if (code === "missing_api_key") setCfg((c) => (c ? { ...c, configured: false } : c));
+  }, []);
+  const engine = useChatEngine(store, settings.model, limits, onConfigError);
+  const { generating, stop } = engine;
 
-  const send = useCallback(
-    async (text: string, attachments: Attachment[]) => {
-      if (busy.current || !model) return;
-      busy.current = true;
+  const closeOnMobile = useCallback(() => isMobile() && setSidebarOpen(false), []);
 
-      const userMsg: Message = { id: uid(), role: "user", content: text, createdAt: Date.now(), ...(attachments.length ? { attachments } : {}) };
-      const botMsg: Message = { id: uid(), role: "assistant", content: "", createdAt: Date.now(), model };
+  const newChat = useCallback(() => {
+    store.setActiveId(null);
+    closeOnMobile();
+    requestAnimationFrame(() => composer.current?.focus());
+  }, [store.setActiveId, closeOnMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      let chatId = activeId;
-      const history = chatId ? latest.current.find((c) => c.id === chatId)?.messages ?? [] : [];
-      if (!chatId) {
-        chatId = createChat(userMsg);
-        appendMessages(chatId, botMsg);
-      } else {
-        appendMessages(chatId, userMsg, botMsg);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        newChat();
       }
-      const id = chatId;
-      stick.current = true;
-      if (isMobile()) setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newChat]);
 
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      setGenerating({ chatId: id, msgId: botMsg.id });
-
-      try {
-        await streamChat({
-          model,
-          messages: toWire([...history, userMsg], limits.maxMessages),
-          signal: ctrl.signal,
-          onDelta: (d) => patchMessage(id, botMsg.id, (m) => ({ ...m, content: m.content + d })),
-        });
-      } catch (e) {
-        if ((e as Error).name === "AbortError") {
-          patchMessage(id, botMsg.id, (m) => ({ ...m, stopped: true }));
-        } else {
-          const msg = e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
-          patchMessage(id, botMsg.id, (m) => ({ ...m, error: msg }));
-          if (e instanceof ApiError && e.code === "missing_api_key") setCfg((c) => (c ? { ...c, configured: false } : c));
-        }
-      } finally {
-        abortRef.current = null;
-        busy.current = false;
-        setGenerating(null);
-      }
+  const onSelect = useCallback(
+    (id: string) => {
+      store.setActiveId(id);
+      closeOnMobile();
     },
-    [activeId, model, limits.maxMessages, createChat, appendMessages, patchMessage, latest],
+    [store.setActiveId, closeOnMobile], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  const stop = () => abortRef.current?.abort();
+  const onDelete = useCallback(
+    (id: string, title: string) =>
+      setConfirm({
+        title: "Delete conversation?",
+        message: `“${title}” will be permanently deleted from this device.`,
+        confirmLabel: "Delete",
+        danger: true,
+        onConfirm: () => {
+          if (generating?.convId === id) stop();
+          store.remove(id);
+        },
+      }),
+    [generating, stop, store.remove], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
-  const newChat = () => {
-    if (generating) stop();
-    setActiveId(null);
-    if (isMobile()) setSidebarOpen(false);
-  };
+  const onDeleteAll = useCallback(
+    () =>
+      setConfirm({
+        title: "Delete all conversations?",
+        message: "Every conversation stored in this browser will be permanently deleted. Consider exporting first.",
+        confirmLabel: "Delete all",
+        danger: true,
+        onConfirm: () => {
+          stop();
+          store.removeAll();
+        },
+      }),
+    [stop, store.removeAll], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
-  const notConfigured = cfg && !cfg.configured;
+  const active = store.active;
+  const onClear = useCallback(() => {
+    if (!active) return;
+    setConfirm({
+      title: "Clear this conversation?",
+      message: "All messages in this conversation will be removed. The conversation itself stays in your history.",
+      confirmLabel: "Clear",
+      danger: true,
+      onConfirm: () => {
+        if (generating?.convId === active.id) stop();
+        store.clearMessages(active.id);
+      },
+    });
+  }, [active, generating, stop, store.clearMessages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeId = store.activeId;
+  const onRegenerate = useCallback((msgId: string) => activeId && engine.regenerate(activeId, msgId), [activeId, engine.regenerate]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onFeedback = useCallback(
+    (msgId: string, value: "up" | "down" | undefined) => activeId && store.patchMessage(activeId, msgId, (m) => ({ ...m, feedback: value })),
+    [activeId, store.patchMessage], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const onPick = useCallback((prompt: string) => composer.current?.setText(prompt), []);
+  const onModel = useCallback((id: string) => set("model", id), [set]);
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  const notConfigured = !!cfg && !cfg.configured;
+  const models = useMemo(() => cfg?.models ?? [], [cfg]);
+  const title = active?.title ?? "New chat";
+
+  useEffect(() => {
+    document.title = active ? `${active.title} · Galaxy AI` : "Galaxy AI";
+  }, [active?.title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!cfg && !cfgError) {
+    return (
+      <div className="splash" role="status" aria-label="Loading Galaxy AI">
+        <Logo size={48} />
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   return (
     <div className={`app ${sidebarOpen ? "with-sidebar" : ""}`}>
+      <a className="skip-link" href="#composer-input-area">Skip to message input</a>
       <Sidebar
-        chats={chats}
-        activeId={activeId}
+        metas={store.metas}
+        activeId={store.activeId}
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onSelect={(id) => {
-          setActiveId(id);
-          if (isMobile()) setSidebarOpen(false);
-        }}
+        search={store.search}
+        onClose={closeSidebar}
+        onSelect={onSelect}
         onNew={newChat}
-        onRename={renameChat}
-        onDelete={(id) => {
-          if (generating?.chatId === id) stop();
-          deleteChat(id);
-        }}
-        theme={pref}
-        onTheme={setPref}
+        onRename={store.rename}
+        onDelete={onDelete}
+        onDeleteAll={onDeleteAll}
+        onSettings={openSettings}
       />
 
       <main className="main">
-        <header className="topbar">
-          {!sidebarOpen && (
-            <>
-              <button className="icon-btn" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar" title="Open sidebar">
-                <span className="only-desktop"><SidebarIcon /></span>
-                <span className="only-mobile"><MenuIcon /></span>
-              </button>
-              <button className="icon-btn" onClick={newChat} aria-label="New chat" title="New chat">
-                <ComposeIcon />
-              </button>
-            </>
-          )}
-          <label className="model-picker">
-            <span className="sr-only">Model</span>
-            <select value={model} onChange={(e) => setModel(e.target.value)} disabled={!cfg || !!generating} aria-label="Model">
-              {(cfg?.models ?? (model ? [model] : [])).map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-          <div className="topbar-title only-mobile">
-            <Logo size={22} /> Your-AI
-          </div>
-        </header>
+        <ChatHeader
+          title={title}
+          sidebarOpen={sidebarOpen}
+          models={models}
+          model={settings.model}
+          modelDisabled={!!generating}
+          canClear={!!active?.messages.length}
+          onOpenSidebar={openSidebar}
+          onNew={newChat}
+          onModel={onModel}
+          onClear={onClear}
+          onSettings={openSettings}
+        />
 
         {(notConfigured || cfgError) && (
           <div className="setup-banner" role="alert">
             <AlertIcon width={18} height={18} />
             <div>
               {cfgError ? (
-                <><strong>Backend unreachable.</strong> {cfgError} Start it with <code>npm run dev</code>.</>
+                <>
+                  <strong>Server unavailable.</strong> {cfgError}{" "}
+                  <button className="link-btn" onClick={loadConfig}>Retry</button>
+                </>
               ) : (
-                <><strong>Setup required:</strong> <code>OPENAI_API_KEY</code> is not configured. Copy <code>.env.example</code> to <code>.env</code>, add your key, and restart the server.</>
+                <>
+                  <strong>Setup required.</strong> No AI provider key is configured. Add <code>GEMINI_API_KEY</code> (or <code>OPENAI_API_KEY</code>) to
+                  <code>.env</code> and restart the server.
+                </>
               )}
             </div>
           </div>
         )}
 
-        <div
-          className="scroller"
-          ref={scroller}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-          }}
-        >
-          {active ? (
-            <div className="thread">
-              {active.messages.map((m) => (
-                <MessageItem key={m.id} message={m} streaming={generating?.msgId === m.id} />
-              ))}
-            </div>
-          ) : (
-            <Welcome onPick={(p) => send(p, [])} />
-          )}
-        </div>
-
-        <Composer
-          generating={!!generating}
-          disabled={!!notConfigured || !!cfgError || !model}
-          maxChars={limits.maxMessageChars}
-          maxAttachments={limits.maxAttachments}
-          limits={limits}
-          onSend={send}
-          onStop={stop}
+        <ChatView
+          conversation={active}
+          streamingId={generating?.msgId ?? null}
+          busy={!!generating}
+          models={models}
+          onPick={onPick}
+          onRegenerate={onRegenerate}
+          onFeedback={onFeedback}
         />
+
+        <div id="composer-input-area">
+          <Composer
+            ref={composer}
+            generating={!!generating}
+            disabled={notConfigured || !!cfgError || !settings.model}
+            disabledReason={notConfigured ? "Add an API key to start chatting" : cfgError ? "Server unavailable" : undefined}
+            enterToSend={settings.enterToSend}
+            limits={limits}
+            onSend={engine.send}
+            onStop={stop}
+          />
+        </div>
       </main>
+
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal
+            settings={settings}
+            models={models}
+            provider={cfg?.provider ?? null}
+            conversations={store.conversations}
+            onSet={set}
+            onImport={store.importMany}
+            onClearAll={() => {
+              setSettingsOpen(false);
+              onDeleteAll();
+            }}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </Suspense>
+      )}
+      {confirm && <ConfirmDialog req={confirm} onClose={() => setConfirm(null)} />}
     </div>
   );
 }

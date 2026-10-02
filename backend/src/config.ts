@@ -4,43 +4,45 @@ import dotenv from "dotenv";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-// Load the repo-root .env first, then an optional backend/.env. Existing
-// process env vars always win (dotenv never overrides them).
+// Load repo-root .env, then optional backend/.env. Real env vars always win.
 dotenv.config({ path: path.resolve(here, "../../.env"), quiet: true });
 dotenv.config({ path: path.resolve(here, "../.env"), quiet: true });
 
-function clean(value: string | undefined): string {
-  const v = (value ?? "").trim();
-  // Treat the placeholder from .env.example as "not configured".
-  return v === "" || v.startsWith("sk-your-") ? "" : v;
+/** Treat blanks and documented placeholders as "not configured". */
+function secret(name: string): string {
+  const v = (process.env[name] ?? "").trim();
+  return v === "" || /^(your-|sk-your-|replace-me)/i.test(v) ? "" : v;
 }
 
-const models = (process.env.OPENAI_MODELS ?? "gpt-5-mini,gpt-5,gpt-4.1-mini")
-  .split(",")
-  .map((m) => m.trim())
-  .filter(Boolean);
+export type ProviderId = "gemini" | "openai";
 
-const defaultModel =
-  process.env.OPENAI_DEFAULT_MODEL?.trim() && models.includes(process.env.OPENAI_DEFAULT_MODEL.trim())
-    ? process.env.OPENAI_DEFAULT_MODEL.trim()
-    : models[0];
+const keys = { gemini: secret("GEMINI_API_KEY"), openai: secret("OPENAI_API_KEY") };
+
+function pickProvider(): ProviderId | null {
+  const wanted = process.env.AI_PROVIDER?.trim().toLowerCase();
+  if (wanted === "gemini" || wanted === "openai") return keys[wanted] ? wanted : null;
+  if (keys.gemini) return "gemini";
+  if (keys.openai) return "openai";
+  return null;
+}
 
 export const config = {
   port: Number(process.env.PORT ?? 3001),
-  apiKey: clean(process.env.OPENAI_API_KEY),
-  baseURL: process.env.OPENAI_BASE_URL?.trim() || undefined,
-  models,
-  defaultModel,
+  provider: pickProvider(),
+  keys,
+  openaiBaseURL: process.env.OPENAI_BASE_URL?.trim() || undefined,
   systemPrompt:
     process.env.SYSTEM_PROMPT?.trim() ||
-    "You are Your-AI, a helpful, precise assistant. Format answers with Markdown when useful and use fenced code blocks with a language tag for code.",
+    "You are Galaxy AI, a helpful, accurate and friendly assistant. Format answers with Markdown when it improves readability, and always use fenced code blocks with a language tag for code. If you are unsure, say so.",
   staticDir: process.env.STATIC_DIR?.trim() || path.resolve(here, "../../frontend/dist"),
+  rateLimitPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE ?? 30),
   limits: {
-    maxMessages: 60,
+    maxMessages: 80,
     maxMessageChars: 32_000,
-    maxTotalChars: 200_000,
-    maxAttachments: 4,
-    maxImageBytes: 4 * 1024 * 1024,
-    maxTextFileChars: 100_000,
+    maxTotalChars: 240_000,
+    maxAttachments: 5,
+    maxImageBytes: 5 * 1024 * 1024,
+    maxPdfBytes: 10 * 1024 * 1024,
+    maxTextFileChars: 120_000,
   },
 };

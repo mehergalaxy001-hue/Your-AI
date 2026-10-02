@@ -1,86 +1,120 @@
-# Your-AI
+# Galaxy AI
 
-A full-stack AI chat app: **React + Vite + TypeScript** frontend, **Node.js + Express** backend, and the **official OpenAI SDK**. Replies stream to the UI as they are generated. The OpenAI API key stays on the server and is never sent to the browser.
+Galaxy AI is a full-stack AI chatbot. The frontend is **React + TypeScript + Vite**. A small **Node/Express** backend streams replies from **Google Gemini** (the default) or **OpenAI**. API keys live only on the server and never reach the browser.
 
 ```
-Browser (React) ──/api/chat (SSE)──▶ Express ──▶ OpenAI API
+Browser (React) ──POST /api/chat (Server-Sent Events)──▶ Express ──▶ Gemini / OpenAI
 ```
 
 ## Features
-- Responsive sidebar with chat history, search, rename and delete
-- Streaming replies with a Stop button and protection against double submits
-- Markdown (GFM) rendering, syntax-highlighted code blocks, Copy code and Copy response buttons
-- Enter sends, Shift+Enter adds a new line, and the view auto-scrolls during replies
-- Model picker, configured on the server through `OPENAI_MODELS`
-- Light, dark and system themes; your choice is saved
-- Chats are saved in `localStorage`. Each chat keeps its id, title, creation time, update time and messages
-- Attachments:
-  - Images (PNG, JPEG, WebP or GIF, up to 4 MB) are sent to the model as vision input
-  - Text and code files are added to the prompt
-  - Other file types are rejected with a message
-- Request validation (zod) and size limits, with error messages that never show stack traces or secrets
+- **Chat**
+  - Replies stream in as they are generated, with a typing indicator, a **Stop** button and automatic scrolling (with a "jump to latest" button).
+  - Each reply has **Regenerate**, **Copy**, and 👍/👎 buttons. Feedback is saved locally only.
+  - You can clear a conversation.
+- **Sidebar**
+  - New chat (Ctrl/⌘+Shift+O).
+  - Searches both titles and message text.
+  - Chats are grouped by date: Today, Yesterday, and so on.
+  - Rename, delete, or delete all chats.
+  - The sidebar can be collapsed. On mobile it becomes a drawer that closes after you pick a chat.
+- **Composer**
+  - The text box grows as you type.
+  - Enter sends and Shift+Enter adds a new line. You can switch to Ctrl/⌘+Enter to send in Settings.
+  - A character counter appears near the limit.
+  - **Attachments:**
+    - Images (PNG, JPEG, WebP) and PDFs go to the model as native inputs.
+    - Text and code files are added to the prompt.
+    - Unsupported files are rejected with a message.
+  - **Voice input** uses the browser's speech recognition. The transcript goes into the text box so you can edit it. If the browser doesn't support it, you get a clear message.
+- **Models**: you pick **Fast / Balanced / Advanced**. These map to real provider models in `backend/src/models.ts`, and you can override each one in `.env`.
+- **Message display**: Markdown (GitHub-flavoured), headings, tables, quotes, links and syntax-highlighted code with **Copy code**. Long code scrolls sideways. Raw HTML is never rendered.
+- **Settings**:
+  - theme (Light / Dark / System; dark is the default)
+  - default model
+  - Enter-to-send
+  - export and import (JSON, checked on import)
+  - clear all
+  - about
+- **Persistence**: conversations are kept in `localStorage` as `{id, title, createdAt, updatedAt, messages[{id, role, content, timestamp}]}`. Saved data is checked when it loads, so corrupted data can't crash the app.
+- **Error handling**: clear messages for:
+  - missing or invalid API key
+  - rate limits (from the provider, and the server's own per-IP limit)
+  - network failures
+  - provider outages
+  - empty replies
+  - stalled streams (60-second idle timeout, so the UI never stays stuck on "generating")
+- **Performance**:
+  - Messages and the sidebar only re-render when they change.
+  - Streamed text is batched once per animation frame.
+  - Saving to `localStorage` is delayed slightly so it doesn't run on every token.
+  - The Markdown/code-highlighting bundle and the Settings dialog load separately (lazy-loaded).
+- **Accessibility**: keyboard-navigable menus and dialogs (focus stays inside an open dialog, and Esc closes it), ARIA labels, visible focus outlines, a skip link, a live region for messages, and reduced-motion support.
 
 ## Project structure
 ```
 backend/src/
-  server.ts            Express app (also serves frontend/dist in production)
-  config.ts            Settings read from the environment and .env
-  validation.ts        Request schema and limits
-  routes/chat.ts       GET /api/config, POST /api/chat (SSE)
-  services/openai.ts   OpenAI client, message mapping, error mapping
+  server.ts               Express app (serves frontend/dist in production)
+  config.ts               Environment settings and provider selection
+  models.ts               Fast/Balanced/Advanced → provider model mapping
+  validation.ts           zod request schema and limits
+  rateLimit.ts            Per-IP request limit
+  api/chat/router.ts      GET /api/config, POST /api/chat (streaming)
+  providers/              gemini.ts, openai.ts, shared types and error mapping
 frontend/src/
-  App.tsx              Main screen and chat state
-  components/          Sidebar, Composer, MessageItem, Markdown, Welcome, Icons
-  hooks/               useChats (localStorage), useTheme
-  lib/                 api (SSE client), storage, attachments
+  App.tsx, main.tsx, styles.css
+  components/Chat/        ChatHeader, ChatView, Welcome
+  components/Sidebar/     Sidebar
+  components/Composer/    Composer (attachments, voice)
+  components/Message/     MessageItem, Markdown (lazy-loaded)
+  components/Settings/    SettingsModal (lazy-loaded)
+  components/UI/          Icons, Modal, ConfirmDialog
+  hooks/                  useConversations, useChatEngine, useSettings, useSpeechRecognition, useCopy
+  services/               api (streaming client), storage
+  utils/                  attachments, format, validate (import/export)
   types/
 ```
 
-## Local development
-1. **Install dependencies.** You need Node 20 or later.
-   ```bash
-   npm install
-   ```
-2. **Create the `.env` file.**
-   ```bash
-   cp .env.example .env
-   ```
-3. **Add your key** to `.env`: `OPENAI_API_KEY=sk-...`. You can also set `OPENAI_MODELS` (a comma-separated list; the first entry is the default).
-4. **Start the dev servers.** This runs the API on port 3001 and Vite on port 5173. Vite forwards `/api` requests to the API.
-   ```bash
-   npm run dev
-   ```
-5. **Open the app** at http://localhost:5173.
+## Getting started
+```bash
+npm install
+cp .env.example .env          # then set GEMINI_API_KEY (or OPENAI_API_KEY)
+npm run dev                   # API on :3001, app on http://localhost:5173
+```
+Get a Gemini key at https://aistudio.google.com/apikey.
 
-If no key is set, the app shows a "Setup required" banner and the API returns a `missing_api_key` error. It never shows made-up replies.
+### Environment variables
+| Variable | Required | Purpose |
+|---|---|---|
+| `GEMINI_API_KEY` | one of the two | Google Gemini key |
+| `OPENAI_API_KEY` | one of the two | OpenAI key |
+| `AI_PROVIDER` | no | Force `gemini` or `openai` |
+| `MODEL_FAST` / `MODEL_BALANCED` / `MODEL_ADVANCED` | no | Override the model behind each tier |
+| `PORT` | no | API port (default 3001) |
+| `RATE_LIMIT_PER_MINUTE` | no | Chat requests allowed per IP per minute (default 30; 0 turns it off) |
+| `OPENAI_BASE_URL`, `SYSTEM_PROMPT` | no | Advanced overrides |
 
 ## Docker
 ```bash
-cp .env.example .env              # add OPENAI_API_KEY
-docker compose up --build         # dev with hot reload → http://localhost:5173
-docker compose --profile prod up --build prod   # production → http://localhost:3001
+docker compose up --build                         # dev with hot reload → http://localhost:5173
+docker compose --profile prod up --build prod     # production → http://localhost:3001
 ```
-`docker-compose.alloy.yaml` is the host-network setup used by the Alloy sandbox.
 
 ## Production build
 ```bash
 npm run typecheck
 npm run build      # outputs frontend/dist and backend/dist
-npm start          # Express serves the API and the built UI on PORT (default 3001)
+npm start          # Express serves the API and the built app on PORT
 ```
 
-## Environment variables
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `OPENAI_API_KEY` | yes | – | OpenAI key (used only on the server) |
-| `OPENAI_MODELS` | no | `gpt-5-mini,gpt-5,gpt-4.1-mini` | Models offered in the picker |
-| `OPENAI_DEFAULT_MODEL` | no | first entry in `OPENAI_MODELS` | Default model |
-| `PORT` | no | `3001` | API port |
-| `OPENAI_BASE_URL` | no | – | Address of an OpenAI-compatible API, if not using OpenAI's |
-| `SYSTEM_PROMPT` | no | built-in | Instructions given to the assistant |
+## API
+`POST /api/chat`
+```json
+{ "model": "balanced", "messages": [{ "role": "user", "content": "Hello", "attachments": [] }] }
+```
+The reply is a stream of Server-Sent Events: `{"type":"delta","text":"…"}`, then `{"type":"done"}` or `{"type":"error","code":"rate_limited","message":"…"}`. Problems found before streaming starts are returned as JSON with status 400, 429 or 503.
 
 ## Limitations
-- Chats live only in this browser's `localStorage`. They do not sync between devices, and there are no user accounts.
-- If browser storage fills up, saved image data is removed first so the chat text is kept. Older images then can't be sent to the model again.
-- PDFs and other binary documents are not supported.
-- There is no rate limiting or authentication. Put the app behind your own auth before exposing it publicly.
+- Conversations are stored only in this browser. They do not sync across devices, and there are no accounts.
+- Only the newest message's attachments are sent to the model; earlier ones are mentioned by filename. If browser storage fills up, saved image and PDF data is removed first so the chat text is kept.
+- Voice input depends on browser support (Chrome, Edge, Safari). Firefox shows an "unavailable" message.
+- The rate limiter is kept in memory for a single server. There is no authentication, so put the app behind your own access control before exposing it publicly.

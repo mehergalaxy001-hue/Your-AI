@@ -1,5 +1,5 @@
 export type Role = "user" | "assistant";
-export type AttachmentKind = "image" | "text";
+export type AttachmentKind = "image" | "text" | "pdf";
 
 export interface Attachment {
   id: string;
@@ -7,23 +7,29 @@ export interface Attachment {
   mime: string;
   size: number;
   kind: AttachmentKind;
-  /** data: URL for images, file contents for text files. May be dropped if storage is full. */
+  /** data: URL for images/PDFs, file contents for text. May be dropped if storage is full. */
   data?: string;
+}
+
+export interface MessageError {
+  code: string;
+  message: string;
 }
 
 export interface Message {
   id: string;
   role: Role;
   content: string;
-  createdAt: number;
+  timestamp: number;
   attachments?: Attachment[];
+  /** Model tier id used for an assistant reply. */
   model?: string;
-  /** User-facing error shown instead of / after content. */
-  error?: string;
+  error?: MessageError;
   stopped?: boolean;
+  feedback?: "up" | "down";
 }
 
-export interface Chat {
+export interface Conversation {
   id: string;
   title: string;
   createdAt: number;
@@ -31,17 +37,40 @@ export interface Chat {
   messages: Message[];
 }
 
+export interface ConversationMeta {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
+export interface ModelOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface Limits {
+  maxMessages: number;
+  maxMessageChars: number;
+  maxTotalChars: number;
+  maxAttachments: number;
+  maxImageBytes: number;
+  maxPdfBytes: number;
+  maxTextFileChars: number;
+}
+
 export interface ServerConfig {
   configured: boolean;
-  models: string[];
+  provider: string | null;
+  models: ModelOption[];
   defaultModel: string;
-  limits: {
-    maxMessages: number;
-    maxMessageChars: number;
-    maxAttachments: number;
-    maxImageBytes: number;
-    maxTextFileChars: number;
-  };
+  limits: Limits;
 }
 
 export type ThemePref = "light" | "dark" | "system";
+
+export interface Settings {
+  theme: ThemePref;
+  model: string;
+  enterToSend: boolean;
+}

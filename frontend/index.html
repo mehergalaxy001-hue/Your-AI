@@ -4,13 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Your-AI — a fast, private-by-default AI chat assistant." />
-    <title>Your-AI</title>
+    <meta name="description" content="Galaxy AI — a fast, private-by-default AI chat assistant." />
+    <meta name="theme-color" content="#0d0d12" />
+    <title>Galaxy AI</title>
     <script>
       // Apply the saved theme before first paint to avoid a flash.
       (function () {
         try {
-          var t = localStorage.getItem("yourai.theme") || "system";
+          var s = JSON.parse(localStorage.getItem("galaxy-ai.settings.v1") || "{}");
+          var t = s.theme || "dark";
           if (t === "system") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           document.documentElement.dataset.theme = t;
         } catch (e) {}
