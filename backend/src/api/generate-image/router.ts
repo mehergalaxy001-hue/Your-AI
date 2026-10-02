@@ -5,6 +5,7 @@ import { getImageProvider } from "../../media/image/index.js";
 import { MediaError, networkError } from "../../media/errors.js";
 import { saveMedia } from "../../media/store.js";
 import { rateLimit } from "../../rateLimit.js";
+import { requireAuth, userKey } from "../../auth.js";
 
 export const imageRouter = Router();
 
@@ -15,7 +16,7 @@ const schema = z.object({
 });
 
 /** POST /api/generate-image { prompt, aspectRatio?, quality? } → { id, url, mime, size } */
-imageRouter.post("/generate-image", rateLimit(aiProviders.limits.perMinute), async (req, res) => {
+imageRouter.post("/generate-image", requireAuth, rateLimit(aiProviders.limits.perMinute), async (req, res) => {
   const provider = getImageProvider();
   if (!provider) {
     res.status(503).json({ error: { code: "missing_api_key", message: "Image generation is not configured on the server." } });
@@ -39,7 +40,7 @@ imageRouter.post("/generate-image", rateLimit(aiProviders.limits.perMinute), asy
   const timeout = setTimeout(() => abort.abort(new DOMException("timeout", "TimeoutError")), 120_000);
   try {
     const img = await provider.generate(prompt, options, abort.signal);
-    const saved = await saveMedia(img.data, img.mime);
+    const saved = await saveMedia(img.data, img.mime, req.uid ? userKey(req.uid) : undefined);
     res.json({ id: saved.file.split(".")[0], url: saved.url, mime: saved.mime, size: saved.size });
   } catch (e) {
     if (res.writableEnded || res.destroyed) return;

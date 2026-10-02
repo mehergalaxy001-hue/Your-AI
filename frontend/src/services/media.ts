@@ -1,4 +1,5 @@
 import type { MediaConfig } from "../types/media";
+import { authFetch } from "../lib/authFetch";
 
 /** Error with a safe, user-facing message coming from the Galaxy AI server. */
 export class MediaApiError extends Error {
@@ -12,7 +13,7 @@ export class MediaApiError extends Error {
 export async function mediaRequest<T>(url: string, init?: RequestInit, fallback = "Something went wrong. Please try again."): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, init);
+    res = await authFetch(url, init);
   } catch (e) {
     if ((e as Error).name === "AbortError") throw e;
     throw new MediaApiError(navigator.onLine ? "Can't reach the Galaxy AI server. Please try again." : "You appear to be offline.", "network_error");

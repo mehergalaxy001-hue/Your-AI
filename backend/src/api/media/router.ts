@@ -5,6 +5,7 @@ import { aiProviders } from "../../config/aiProviders.js";
 import { getImageProvider } from "../../media/image/index.js";
 import { MIME_BY_EXT, mediaPath } from "../../media/store.js";
 import { getVideoProvider } from "../../media/video/index.js";
+import { requireAuth, userKey } from "../../auth.js";
 
 export const mediaRouter = Router();
 
@@ -20,8 +21,9 @@ mediaRouter.get("/media-config", (_req, res) => {
 });
 
 /** GET /api/media/:file — serve stored generated media; ?download=1 forces a download. */
-mediaRouter.get("/media/:file", (req, res) => {
-  const p = mediaPath(req.params.file);
+// File names are random UUIDs (unguessable), so <img>/<video> tags can load them without headers.
+mediaRouter.get(["/media/:file", "/media/u/:owner/:file"], (req, res) => {
+  const p = mediaPath(String(req.params.file), req.params.owner === undefined ? undefined : String(req.params.owner));
   if (!p || !fs.existsSync(p)) {
     res.status(404).json({ error: { code: "expired", message: "This result has expired or is no longer available." } });
     return;
@@ -35,8 +37,13 @@ mediaRouter.get("/media/:file", (req, res) => {
 });
 
 /** DELETE /api/media/:file — remove a generated file the user deleted. */
-mediaRouter.delete("/media/:file", (req, res) => {
-  const p = mediaPath(req.params.file);
+mediaRouter.delete("/media/u/:owner/:file", requireAuth, (req, res) => {
+  // Users may only delete their own files.
+  if (!req.uid || userKey(req.uid) !== req.params.owner) {
+    res.status(403).json({ error: { code: "forbidden", message: "You can't delete this file." } });
+    return;
+  }
+  const p = mediaPath(String(req.params.file), req.params.owner === undefined ? undefined : String(req.params.owner));
   if (!p) {
     res.status(400).json({ error: { code: "invalid_file", message: "Invalid file." } });
     return;

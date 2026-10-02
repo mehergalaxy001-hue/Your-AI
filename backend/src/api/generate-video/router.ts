@@ -5,6 +5,7 @@ import { MediaError } from "../../media/errors.js";
 import { sniffImage } from "../../media/store.js";
 import { getJob, getVideoProvider, startJob } from "../../media/video/index.js";
 import { rateLimit } from "../../rateLimit.js";
+import { requireAuth, userKey } from "../../auth.js";
 
 export const videoRouter = Router();
 
@@ -19,7 +20,7 @@ const schema = z.object({
 });
 
 /** POST /api/generate-video { prompt, aspectRatio?, image? } → job */
-videoRouter.post("/generate-video", rateLimit(aiProviders.limits.perMinute), async (req, res) => {
+videoRouter.post("/generate-video", requireAuth, rateLimit(aiProviders.limits.perMinute), async (req, res) => {
   const provider = getVideoProvider();
   if (!provider) {
     res.status(503).json({ error: { code: "missing_api_key", message: "Video generation is not configured on the server." } });
@@ -50,7 +51,7 @@ videoRouter.post("/generate-video", rateLimit(aiProviders.limits.perMinute), asy
     img = { data, mime };
   }
   try {
-    const job = await startJob(prompt, { aspectRatio, image: img });
+    const job = await startJob(prompt, { aspectRatio, image: img }, req.uid ? userKey(req.uid) : undefined);
     res.status(202).json(job);
   } catch (e) {
     const err = e instanceof MediaError ? e : new MediaError("generation_failed", "Video generation failed. Please try again.");
@@ -60,12 +61,12 @@ videoRouter.post("/generate-video", rateLimit(aiProviders.limits.perMinute), asy
 });
 
 /** GET /api/generate-video/:jobId → job status (polls the provider server-side). */
-videoRouter.get("/generate-video/:jobId", async (req, res) => {
-  if (!/^[0-9a-f-]{36}$/.test(req.params.jobId)) {
+videoRouter.get("/generate-video/:jobId", requireAuth, async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/.test(String(req.params.jobId))) {
     res.status(400).json({ error: { code: "invalid_job", message: "Invalid job id." } });
     return;
   }
-  const job = await getJob(req.params.jobId);
+  const job = await getJob(String(req.params.jobId), req.uid ? userKey(req.uid) : undefined);
   if (!job) {
     res.status(404).json({ error: { code: "job_not_found", message: "This video job no longer exists (it may have expired or the server restarted)." } });
     return;

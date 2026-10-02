@@ -1,4 +1,6 @@
 import { memo, useMemo, useState } from "react";
+import type { User } from "firebase/auth";
+import { AccountMenu } from "./AccountMenu";
 import type { ConversationMeta } from "../../types";
 import { groupLabel } from "../../utils/format";
 import { ComposeIcon, EditIcon, LibraryIcon, PhotoIcon, Logo, SearchIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
@@ -15,6 +17,9 @@ interface Props {
   onDelete: (id: string, title: string) => void;
   onDeleteAll: () => void;
   view: "chat" | "images" | "library";
+  user: User;
+  onSettings: () => void;
+  onSignOut: () => void;
   onImages: () => void;
   onLibrary: () => void;
 }
@@ -148,13 +153,14 @@ function SidebarImpl(p: Props) {
           ))}
         </nav>
 
-        {p.metas.length > 0 && (
-          <div className="sidebar-footer">
+        <div className="sidebar-footer">
+          {p.metas.length > 0 && (
             <button className="side-link danger" onClick={p.onDeleteAll}>
               <TrashIcon width={16} height={16} /> Delete all conversations
             </button>
-          </div>
-        )}
+          )}
+          <AccountMenu user={p.user} onSettings={p.onSettings} onSignOut={p.onSignOut} />
+        </div>
       </aside>
     </>
   );

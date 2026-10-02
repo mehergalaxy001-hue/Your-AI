@@ -4,6 +4,7 @@ import { DEFAULT_TIER, TIERS, resolveModel } from "../../models.js";
 import { getProvider } from "../../providers/index.js";
 import { toPublicError } from "../../providers/types.js";
 import { rateLimit } from "../../rateLimit.js";
+import { requireAuth } from "../../auth.js";
 import { chatRequestSchema } from "../../validation.js";
 
 export const chatRouter = Router();
@@ -23,7 +24,7 @@ chatRouter.get("/config", (_req, res) => {
  * POST /api/chat  { model, messages: [{role, content, attachments?}] }
  * Streams Server-Sent Events: {type:"delta",text} | {type:"error",code,message} | {type:"done"}
  */
-chatRouter.post("/chat", rateLimit(config.rateLimitPerMinute), async (req, res) => {
+chatRouter.post("/chat", requireAuth, rateLimit(config.rateLimitPerMinute), async (req, res) => {
   const provider = getProvider();
   if (!provider) {
     res.status(503).json({

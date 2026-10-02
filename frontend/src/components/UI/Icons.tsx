@@ -49,11 +49,6 @@ export const BulbIcon = (p: P) => <svg {...base(p)}><path d="M9 18h6M10 22h4M12 
 /** Galaxy AI mark: a planet with an orbit ring and a star. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden focusable={false}>
-      <rect width="32" height="32" rx="9" fill="var(--accent)" />
-      <circle cx="16" cy="16.5" r="5.2" fill="#fff" />
-      <ellipse cx="16" cy="16.5" rx="10.5" ry="3.6" fill="none" stroke="#fff" strokeWidth="1.8" transform="rotate(-24 16 16.5)" opacity="0.9" />
-      <path d="M24.5 5.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z" fill="#fff" />
-    </svg>
+    <img src="/galaxy-logo.png" width={size} height={size} alt="" aria-hidden className="logo-img" draggable={false} />
   );
 }

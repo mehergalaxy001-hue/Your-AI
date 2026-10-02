@@ -1,6 +1,6 @@
 import type { ModelOption, Settings, ThemePref } from "../../types";
 import { Modal } from "../UI/Modal";
-import { Logo, MonitorIcon, MoonIcon, SunIcon } from "../UI/Icons";
+import { MonitorIcon, MoonIcon, SunIcon } from "../UI/Icons";
 
 interface Props {
   settings: Settings;
@@ -62,16 +62,6 @@ export default function SettingsModal(p: Props) {
       </section>
 
 
-      <section className="about">
-        <Logo size={36} />
-        <div>
-          <h3>Galaxy AI</h3>
-          <p>
-            A fast, private-by-default AI chat app. Messages are sent through the Galaxy AI server to{" "}
-            {p.provider === "gemini" ? "Google Gemini" : p.provider === "openai" ? "OpenAI" : "your configured AI provider"}; API keys never reach the browser.
-          </p>
-        </div>
-      </section>
     </Modal>
   );
 }

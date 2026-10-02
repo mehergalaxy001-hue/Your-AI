@@ -1,4 +1,5 @@
 import type { Attachment, Limits, Message, ServerConfig } from "../types";
+import { authFetch } from "../lib/authFetch";
 
 export class ApiError extends Error {
   constructor(message: string, public code: string) {
@@ -10,7 +11,7 @@ export class ApiError extends Error {
 export async function fetchConfig(): Promise<ServerConfig> {
   let res: Response;
   try {
-    res = await fetch("/api/config");
+    res = await authFetch("/api/config");
   } catch {
     throw new ApiError("Can't reach the Galaxy AI server. Check that the backend is running.", "server_unreachable");
   }
@@ -81,7 +82,7 @@ export async function streamChat(opts: {
   try {
     let res: Response;
     try {
-      res = await fetch("/api/chat", {
+      res = await authFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: opts.model, messages: opts.messages, ...(opts.webSearch ? { webSearch: true } : {}) }),

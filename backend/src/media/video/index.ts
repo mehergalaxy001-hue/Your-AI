@@ -27,6 +27,7 @@ export interface PublicJob {
 
 interface Job extends PublicJob {
   providerJobId: string;
+  owner?: string;
   lastPoll: number;
   polling?: Promise<void>;
 }
@@ -39,7 +40,7 @@ const jobs = new Map<string, Job>();
 const JOB_TTL = 24 * 3_600_000;
 const MAX_JOB_AGE_RUNNING = 20 * 60_000;
 
-export async function startJob(prompt: string, options: VideoOptions): Promise<PublicJob> {
+export async function startJob(prompt: string, options: VideoOptions, owner?: string): Promise<PublicJob> {
   const provider = getVideoProvider();
   if (!provider) throw new MediaError("missing_api_key", "Video generation is not configured on the server.", 503);
   for (const [k, j] of jobs) if (Date.now() - j.createdAt > JOB_TTL) jobs.delete(k);
@@ -49,14 +50,14 @@ export async function startJob(prompt: string, options: VideoOptions): Promise<P
   } catch (e) {
     throw networkError(e, "Video");
   }
-  const job: Job = { id: crypto.randomUUID(), status: "running", progress: null, createdAt: Date.now(), providerJobId, lastPoll: 0 };
+  const job: Job = { id: crypto.randomUUID(), status: "running", progress: null, createdAt: Date.now(), providerJobId, lastPoll: 0, owner };
   jobs.set(job.id, job);
   return toPublic(job);
 }
 
-export async function getJob(id: string): Promise<PublicJob | null> {
+export async function getJob(id: string, owner?: string): Promise<PublicJob | null> {
   const job = jobs.get(id);
-  if (!job) return null;
+  if (!job || job.owner !== owner) return null; // jobs are private to their creator
   if (job.status === "running" && Date.now() - job.lastPoll > 4000) {
     job.polling ??= refresh(job).finally(() => (job.polling = undefined));
     await job.polling;
@@ -77,7 +78,7 @@ async function refresh(job: Job) {
         job.error = { code: "timeout", message: "Video generation took too long. Please try again." };
       }
     } else if (s.state === "succeeded") {
-      const saved = await saveMedia(s.video.data, s.video.mime);
+      const saved = await saveMedia(s.video.data, s.video.mime, job.owner);
       job.status = "succeeded";
       job.progress = null;
       job.result = { url: saved.url, mime: saved.mime, size: saved.size };

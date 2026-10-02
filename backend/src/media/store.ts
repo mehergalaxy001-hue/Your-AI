@@ -12,28 +12,34 @@ const DIR = aiProviders.media.dir;
 const EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "video/mp4": "mp4" };
 export const MIME_BY_EXT: Record<string, string> = Object.fromEntries(Object.entries(EXT).map(([m, e]) => [e, m]));
 
-export async function saveMedia(data: Buffer, mime: string): Promise<{ file: string; url: string; mime: string; size: number }> {
+/**
+ * Save media. When `owner` (a hashed Firebase uid) is given, the file lives in that
+ * user's own folder: data/media/u/<owner>/<file>, so users' data is never mixed.
+ */
+export async function saveMedia(data: Buffer, mime: string, owner?: string): Promise<{ file: string; url: string; mime: string; size: number }> {
   const ext = EXT[mime];
   if (!ext) throw new Error(`Unsupported media type ${mime}`);
-  await fs.mkdir(DIR, { recursive: true });
+  const dir = owner ? path.join(DIR, "u", owner) : DIR;
+  await fs.mkdir(dir, { recursive: true });
   const file = `${crypto.randomUUID()}.${ext}`;
-  await fs.writeFile(path.join(DIR, file), data);
-  void cleanup();
-  return { file, url: `/api/media/${file}`, mime, size: data.length };
+  await fs.writeFile(path.join(dir, file), data);
+  void cleanup(dir);
+  return { file, url: owner ? `/api/media/u/${owner}/${file}` : `/api/media/${file}`, mime, size: data.length };
 }
 
 /** Resolve a stored file name safely (no path traversal). */
-export function mediaPath(file: string): string | null {
+export function mediaPath(file: string, owner?: string): string | null {
   if (!/^[0-9a-f-]{36}\.(png|jpg|webp|mp4)$/.test(file)) return null;
-  return path.join(DIR, file);
+  if (owner !== undefined && !/^[0-9a-f]{24}$/.test(owner)) return null;
+  return owner ? path.join(DIR, "u", owner, file) : path.join(DIR, file);
 }
 
-let lastCleanup = 0;
-async function cleanup() {
-  if (Date.now() - lastCleanup < 10 * 60_000) return;
-  lastCleanup = Date.now();
+const lastCleanup = new Map<string, number>();
+async function cleanup(DIR: string) {
+  if (Date.now() - (lastCleanup.get(DIR) ?? 0) < 10 * 60_000) return;
+  lastCleanup.set(DIR, Date.now());
   try {
-    const files = await fs.readdir(DIR);
+    const files = (await fs.readdir(DIR, { withFileTypes: true })).filter((d) => d.isFile()).map((d) => d.name);
     const stats = await Promise.all(files.map(async (f) => ({ f, s: await fs.stat(path.join(DIR, f)) })));
     const cutoff = Date.now() - aiProviders.media.retentionHours * 3_600_000;
     const sorted = stats.sort((a, b) => b.s.mtimeMs - a.s.mtimeMs);

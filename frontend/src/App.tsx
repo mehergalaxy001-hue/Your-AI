@@ -1,4 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { User } from "firebase/auth";
+import { useAuth } from "./context/AuthContext";
 import type { Attachment, Limits, ServerConfig } from "./types";
 import { useConversations } from "./hooks/useConversations";
 import { useSettings } from "./hooks/useSettings";
@@ -23,7 +25,8 @@ const FALLBACK_LIMITS: Limits = {
 const mobileQuery = "(max-width: 768px)";
 const isMobile = () => window.matchMedia(mobileQuery).matches;
 
-export default function App() {
+export default function App({ user }: { user: User }) {
+  const { signOut } = useAuth();
   const store = useConversations();
   const { settings, set } = useSettings();
   const [cfg, setCfg] = useState<ServerConfig | null>(null);
@@ -221,6 +224,9 @@ export default function App() {
         onDelete={onDelete}
         onDeleteAll={onDeleteAll}
         view={view}
+        user={user}
+        onSignOut={() => void signOut()}
+        onSettings={openSettings}
         onImages={openImages}
         onLibrary={openLibrary}
       />

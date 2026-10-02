@@ -419,6 +419,44 @@ ul { list-style: none; margin: 0; padding: 0; }
 .lib-actions { display: flex; align-items: center; gap: 2px; margin-top: -4px; }
 .lib-actions .link-btn { margin-right: auto; font-size: 13px; }
 
+
+/* ---------- Brand logo ---------- */
+.logo-img { display: block; border-radius: 22%; object-fit: contain; flex-shrink: 0; }
+
+/* ---------- Auth ---------- */
+.auth { min-height: 100%; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow-y: auto; }
+.auth-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 14px; }
+.auth-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -0.01em; }
+.auth-card h1 { margin: 6px 0 0; font-size: 24px; font-weight: 700; text-align: center; letter-spacing: -0.02em; }
+.auth-card > p { margin: -6px 0 6px; text-align: center; font-size: 14px; }
+.auth-google { justify-content: center; padding: 12px 16px; font-size: 15px; border-radius: 12px; min-height: 48px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.auth-form input { padding: 11px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; outline: 0; }
+.auth-form input:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.auth-form .status { margin: 0; }
+.auth-submit { justify-content: center; padding: 12px 16px; font-size: 15px; border-radius: 12px; min-height: 48px; }
+.auth-links { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 14px; margin-top: 4px; }
+.spinner.sm.dark { border-color: var(--border); border-top-color: var(--accent); }
+
+/* ---------- Account menu ---------- */
+.account { position: relative; }
+.account-trigger { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; text-align: left; }
+.account-trigger:hover, .account-trigger[aria-expanded="true"] { background: var(--hover); }
+.account-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avatar-img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.avatar-img.fallback { display: inline-flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; }
+.account-menu {
+  position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 40; padding: 6px;
+  background: var(--raised); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.account-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.account-id { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.account-id strong, .account-id span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---------- Tablet ---------- */
 @media (max-width: 1024px) {
   :root { --sidebar-w: 260px; }

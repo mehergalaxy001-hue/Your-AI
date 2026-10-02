@@ -28,6 +28,7 @@ export function useSettings() {
     const apply = () => {
       const t = resolveTheme(settings.theme);
       document.documentElement.dataset.theme = t;
+      try { localStorage.setItem("galaxy-ai.theme-hint", t); } catch { /* ignore */ }
       document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "dark" ? "#0d0d12" : "#ffffff");
     };
     apply();

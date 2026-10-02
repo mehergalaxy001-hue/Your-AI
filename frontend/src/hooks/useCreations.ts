@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Creation } from "../types/media";
 import { loadJSON, saveJSON } from "../services/storage";
+import { authFetch } from "../lib/authFetch";
 
 const KEY = "galaxy-ai.creations.v1";
 const MAX = 60;
@@ -32,7 +33,7 @@ export function useCreations() {
   const remove = useCallback((id: string) => {
     setItems((xs) => {
       const c = xs.find((x) => x.id === id);
-      if (c) void fetch(c.resultUrl, { method: "DELETE" }).catch(() => undefined);
+      if (c) void authFetch(c.resultUrl, { method: "DELETE" }).catch(() => undefined);
       return xs.filter((x) => x.id !== id);
     });
   }, []);
