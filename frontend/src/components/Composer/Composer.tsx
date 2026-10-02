@@ -18,6 +18,9 @@ interface Props {
   limits: Limits;
   onSend: (text: string, attachments: Attachment[]) => void;
   onStop: () => void;
+  /** True while an earlier user message is being edited. */
+  editing: boolean;
+  onCancelEdit: () => void;
 }
 
 const MAX_HEIGHT = 240;
@@ -63,19 +66,29 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
   }, [speech.error]);
 
   const over = text.length > p.limits.maxMessageChars;
-  const hasContent = text.trim() !== "" || files.length > 0;
+  const hasContent = text.trim() !== "" || (!p.editing && files.length > 0);
   const canSend = !p.generating && !p.disabled && !over && !reading && hasContent;
 
   const submit = () => {
     if (!canSend) return;
     if (speech.listening) speech.stop();
-    p.onSend(text.trim(), files);
+    p.onSend(text.trim(), p.editing ? [] : files);
     setText("");
-    setFiles([]);
+    if (!p.editing) setFiles([]);
     setNotice(null);
   };
 
+  const cancelEdit = () => {
+    setText("");
+    p.onCancelEdit();
+  };
+
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape" && p.editing) {
+      e.preventDefault();
+      cancelEdit();
+      return;
+    }
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     const modifier = e.metaKey || e.ctrlKey;
     if ((p.enterToSend && !e.shiftKey) || (!p.enterToSend && modifier)) {
@@ -137,7 +150,13 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
           void addFiles(e.dataTransfer.files);
         }}
       >
-        {files.length > 0 && (
+        {p.editing && (
+          <div className="editing-bar">
+            <span>Editing message</span>
+            <button type="button" className="link-btn" onClick={cancelEdit}>Cancel</button>
+          </div>
+        )}
+        {!p.editing && files.length > 0 && (
           <ul className="pending" aria-label="Attachments to send">
             {files.map((f) => (
               <li key={f.id} className={`pending-item ${f.kind}`}>
@@ -180,7 +199,7 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
             onClick={() => fileInput.current?.click()}
             aria-label="Attach files"
             title="Attach images, PDFs or text files"
-            disabled={p.generating || reading}
+            disabled={p.generating || reading || p.editing}
           >
             <PaperclipIcon />
           </button>
@@ -203,7 +222,7 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
               <StopIcon width={14} height={14} />
             </button>
           ) : (
-            <button type="submit" className="send" disabled={!canSend} aria-label="Send message" title="Send">
+            <button type="submit" className="send" disabled={!canSend} aria-label={p.editing ? "Save and resend" : "Send message"} title={p.editing ? "Save & resend" : "Send"}>
               <SendIcon />
             </button>
           )}

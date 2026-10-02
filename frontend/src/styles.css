@@ -189,8 +189,13 @@ ul { list-style: none; margin: 0; padding: 0; }
 .thread { max-width: 780px; margin: 0 auto; padding: 12px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
 .msg.user { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .bubble { max-width: 78%; background: var(--bubble); padding: 10px 16px; border-radius: 20px 20px 6px 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg-time { font-size: 11.5px; color: var(--muted); opacity: 0; transition: opacity 0.15s; }
-.msg.user:hover .msg-time, .msg.user:focus-within .msg-time { opacity: 1; }
+.msg-time { font-size: 11.5px; color: var(--muted); margin-right: 2px; }
+.user-actions { display: flex; align-items: center; gap: 2px; margin-right: -6px; opacity: 0; transition: opacity 0.15s; min-height: 32px; }
+.msg.user:hover .user-actions, .msg.user:focus-within .user-actions, .msg.user.editing .user-actions { opacity: 1; }
+.user-actions-buttons { display: flex; gap: 2px; }
+.user-actions-toggle { display: none; }
+.msg.user.editing .bubble { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+.editing-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 6px; font-size: 13px; color: var(--accent); font-weight: 600; }
 .msg-attachments { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 78%; }
 .msg-image { max-width: 240px; max-height: 240px; border-radius: 14px; border: 1px solid var(--border); object-fit: cover; }
 .file-chip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; max-width: 300px; }
@@ -256,7 +261,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 /* ---------- Welcome ---------- */
 .welcome { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 20px; gap: 8px; }
-.welcome h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 18px 0 0; }
+.welcome h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
 .welcome > p { margin: 0 0 24px; max-width: 460px; }
 .examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: min(700px, 100%); }
 .example {
@@ -364,7 +369,11 @@ ul { list-style: none; margin: 0; padding: 0; }
   .jump { bottom: 130px; }
   .setting { align-items: flex-start; }
 }
+/* Touch devices: no hover, so show a compact toggle that reveals Copy / Edit. */
 @media (hover: none) {
-  .msg-time { opacity: 1; }
+  .user-actions { opacity: 1; }
+  .user-actions-buttons, .msg-time { display: none; }
+  .user-actions-toggle { display: inline-flex; }
+  .msg.user.actions-open .user-actions-buttons, .msg.user.editing .user-actions-buttons { display: flex; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }

@@ -9,13 +9,14 @@ interface Props {
   streamingId: string | null;
   busy: boolean;
   models: ModelOption[];
-  onPick: (prompt: string) => void;
+  editingId: string | null;
+  onEdit: (msgId: string) => void;
   onRegenerate: (msgId: string) => void;
   onFeedback: (msgId: string, value: "up" | "down" | undefined) => void;
 }
 
 /** Scrollable thread with "stick to bottom" auto-scroll while streaming. */
-export function ChatView({ conversation, streamingId, busy, models, onPick, onRegenerate, onFeedback }: Props) {
+export function ChatView({ conversation, streamingId, busy, models, editingId, onEdit, onRegenerate, onFeedback }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const [showJump, setShowJump] = useState(false);
@@ -57,7 +58,7 @@ export function ChatView({ conversation, streamingId, busy, models, onPick, onRe
   return (
     <div className="scroller" ref={scroller} onScroll={onScroll}>
       {messages.length === 0 ? (
-        <Welcome onPick={onPick} />
+        <Welcome />
       ) : (
         <div className="thread" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation">
           {messages.map((m) => (
@@ -68,6 +69,8 @@ export function ChatView({ conversation, streamingId, busy, models, onPick, onRe
               canRegenerate={m.id === lastAssistant}
               busy={busy}
               models={models}
+              editing={editingId === m.id}
+              onEdit={onEdit}
               onRegenerate={onRegenerate}
               onFeedback={onFeedback}
             />

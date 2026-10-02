@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import type { ConversationMeta } from "../../types";
 import { groupLabel } from "../../utils/format";
-import { ComposeIcon, EditIcon, Logo, SearchIcon, SettingsIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
+import { ComposeIcon, EditIcon, Logo, SearchIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
 
 interface Props {
   metas: ConversationMeta[];
@@ -14,7 +14,6 @@ interface Props {
   onRename: (id: string, title: string) => void;
   onDelete: (id: string, title: string) => void;
   onDeleteAll: () => void;
-  onSettings: () => void;
 }
 
 function SidebarImpl(p: Props) {
@@ -137,16 +136,13 @@ function SidebarImpl(p: Props) {
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          {p.metas.length > 0 && (
+        {p.metas.length > 0 && (
+          <div className="sidebar-footer">
             <button className="side-link danger" onClick={p.onDeleteAll}>
               <TrashIcon width={16} height={16} /> Delete all conversations
             </button>
-          )}
-          <button className="side-link" onClick={p.onSettings}>
-            <SettingsIcon width={16} height={16} /> Settings
-          </button>
-        </div>
+          </div>
+        )}
       </aside>
     </>
   );

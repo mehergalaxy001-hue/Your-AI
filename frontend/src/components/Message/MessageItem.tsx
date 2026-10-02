@@ -1,8 +1,8 @@
-import { lazy, memo, Suspense } from "react";
+import { lazy, memo, Suspense, useState } from "react";
 import type { Message, ModelOption } from "../../types";
 import { useCopy } from "../../hooks/useCopy";
 import { formatBytes } from "../../utils/format";
-import { AlertIcon, CheckIcon, CopyIcon, FileIcon, Logo, RefreshIcon, ThumbDownIcon, ThumbUpIcon } from "../UI/Icons";
+import { AlertIcon, CheckIcon, CopyIcon, EditIcon, FileIcon, Logo, MoreIcon, RefreshIcon, ThumbDownIcon, ThumbUpIcon } from "../UI/Icons";
 
 // Code-split the markdown/highlighting bundle, but start fetching it immediately.
 const loadMarkdown = () => import("./Markdown");
@@ -16,18 +16,22 @@ interface Props {
   canRegenerate: boolean;
   busy: boolean;
   models: ModelOption[];
+  /** This user message is currently being edited in the composer. */
+  editing: boolean;
+  onEdit: (msgId: string) => void;
   onRegenerate: (msgId: string) => void;
   onFeedback: (msgId: string, value: "up" | "down" | undefined) => void;
 }
 
 const time = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-function MessageItemImpl({ message, streaming, canRegenerate, busy, models, onRegenerate, onFeedback }: Props) {
+function MessageItemImpl({ message, streaming, canRegenerate, busy, models, editing, onEdit, onRegenerate, onFeedback }: Props) {
   const [copied, copy] = useCopy();
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   if (message.role === "user") {
     return (
-      <article className="msg user" aria-label="Your message">
+      <article className={`msg user ${editing ? "editing" : ""} ${actionsOpen ? "actions-open" : ""}`} aria-label="Your message">
         {!!message.attachments?.length && (
           <div className="msg-attachments">
             {message.attachments.map((a) =>
@@ -44,7 +48,28 @@ function MessageItemImpl({ message, streaming, canRegenerate, busy, models, onRe
           </div>
         )}
         {message.content && <div className="bubble">{message.content}</div>}
-        <time className="msg-time" dateTime={new Date(message.timestamp).toISOString()}>{time(message.timestamp)}</time>
+        <div className="user-actions">
+          {editing && <span className="tag">Editing</span>}
+          <time className="msg-time" dateTime={new Date(message.timestamp).toISOString()}>{time(message.timestamp)}</time>
+          <div className="user-actions-buttons">
+            {message.content && (
+              <button className="icon-btn sm" onClick={() => copy(message.content)} aria-label={copied ? "Message copied" : "Copy message"} title={copied ? "Copied" : "Copy"}>
+                {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />}
+              </button>
+            )}
+            <button className="icon-btn sm" onClick={() => { setActionsOpen(false); onEdit(message.id); }} disabled={busy} aria-label="Edit message" title="Edit">
+              <EditIcon width={16} height={16} />
+            </button>
+          </div>
+          <button
+            className="icon-btn sm user-actions-toggle"
+            onClick={() => setActionsOpen((o) => !o)}
+            aria-expanded={actionsOpen}
+            aria-label="Message actions"
+          >
+            <MoreIcon width={16} height={16} />
+          </button>
+        </div>
       </article>
     );
   }

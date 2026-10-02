@@ -107,7 +107,29 @@ export function useChatEngine(store: ConversationStore, model: string, limits: L
     [run],
   );
 
+  /**
+   * Replace the text of user message `msgId`, discard everything after it
+   * (including the outdated reply) and generate a fresh response.
+   */
+  const edit = useCallback(
+    (convId: string, msgId: string, text: string) => {
+      if (busy.current || !S.current.model) return;
+      const conv = S.current.store.latest.current.find((c) => c.id === convId);
+      const idx = conv?.messages.findIndex((m) => m.id === msgId) ?? -1;
+      if (!conv || idx < 0 || conv.messages[idx].role !== "user") return;
+      const original = conv.messages[idx];
+      if (!text.trim() && !original.attachments?.length) return;
+      busy.current = true;
+      const user: Message = { ...original, content: text, timestamp: Date.now() };
+      const bot: Message = { id: uid(), role: "assistant", content: "", timestamp: Date.now(), model: S.current.model };
+      const history = [...conv.messages.slice(0, idx), user];
+      S.current.store.update(convId, (c) => ({ ...c, messages: [...history, bot], updatedAt: Date.now() }));
+      void run(convId, history, bot);
+    },
+    [run],
+  );
+
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
-  return { generating, send, regenerate, stop };
+  return { generating, send, regenerate, edit, stop };
 }

@@ -1,17 +1,12 @@
-import { useRef, useState } from "react";
-import type { Conversation, ModelOption, Settings, ThemePref } from "../../types";
-import { buildExport, parseImport } from "../../utils/validate";
+import type { ModelOption, Settings, ThemePref } from "../../types";
 import { Modal } from "../UI/Modal";
-import { DownloadIcon, Logo, MonitorIcon, MoonIcon, SunIcon, TrashIcon, UploadIcon } from "../UI/Icons";
+import { Logo, MonitorIcon, MoonIcon, SunIcon } from "../UI/Icons";
 
 interface Props {
   settings: Settings;
   models: ModelOption[];
   provider: string | null;
-  conversations: Conversation[];
   onSet: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
-  onImport: (list: Conversation[]) => void;
-  onClearAll: () => void;
   onClose: () => void;
 }
 
@@ -22,37 +17,6 @@ const THEMES: { id: ThemePref; label: string; icon: typeof SunIcon }[] = [
 ];
 
 export default function SettingsModal(p: Props) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-
-  const doExport = () => {
-    const blob = new Blob([buildExport(p.conversations)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `galaxy-ai-conversations-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus({ kind: "ok", text: `Exported ${p.conversations.length} conversation(s).` });
-  };
-
-  const doImport = async (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > 50 * 1024 * 1024) {
-      setStatus({ kind: "error", text: "That file is too large to import (max 50 MB)." });
-      return;
-    }
-    try {
-      const { conversations, skipped } = parseImport(await file.text());
-      p.onImport(conversations);
-      setStatus({ kind: "ok", text: `Imported ${conversations.length} conversation(s)${skipped ? `, skipped ${skipped} invalid` : ""}.` });
-    } catch (e) {
-      setStatus({ kind: "error", text: (e as Error).message });
-    } finally {
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
   return (
     <Modal title="Settings" onClose={p.onClose}>
       <section className="setting">
@@ -97,19 +61,6 @@ export default function SettingsModal(p: Props) {
         </button>
       </section>
 
-      <section className="setting">
-        <div className="setting-label">
-          <h3>Data</h3>
-          <p>Conversations are stored only in this browser.</p>
-        </div>
-        <div className="btn-row">
-          <button className="btn" onClick={doExport} disabled={!p.conversations.length}><DownloadIcon width={16} height={16} /> Export</button>
-          <button className="btn" onClick={() => fileRef.current?.click()}><UploadIcon width={16} height={16} /> Import</button>
-          <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => void doImport(e.target.files?.[0])} />
-          <button className="btn danger" onClick={p.onClearAll} disabled={!p.conversations.length}><TrashIcon width={16} height={16} /> Clear all</button>
-        </div>
-      </section>
-      {status && <p className={`status ${status.kind}`} role="status">{status.text}</p>}
 
       <section className="about">
         <Logo size={36} />

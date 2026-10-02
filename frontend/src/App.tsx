@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Limits, ServerConfig } from "./types";
+import type { Attachment, Limits, ServerConfig } from "./types";
 import { useConversations } from "./hooks/useConversations";
 import { useSettings } from "./hooks/useSettings";
 import { useChatEngine } from "./hooks/useChatEngine";
@@ -135,7 +135,30 @@ export default function App() {
     (msgId: string, value: "up" | "down" | undefined) => activeId && store.patchMessage(activeId, msgId, (m) => ({ ...m, feedback: value })),
     [activeId, store.patchMessage], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const onPick = useCallback((prompt: string) => composer.current?.setText(prompt), []);
+  // Editing an earlier user message: load it into the composer, then resend.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  useEffect(() => setEditingId(null), [activeId]);
+  const onEdit = useCallback(
+    (msgId: string) => {
+      const msg = store.latest.current.find((c) => c.id === activeId)?.messages.find((m) => m.id === msgId);
+      if (!msg) return;
+      setEditingId(msgId);
+      composer.current?.setText(msg.content);
+    },
+    [activeId], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const onCancelEdit = useCallback(() => setEditingId(null), []);
+  const onSend = useCallback(
+    (text: string, attachments: Attachment[]) => {
+      if (editingId && activeId) {
+        engine.edit(activeId, editingId, text);
+        setEditingId(null);
+      } else {
+        engine.send(text, attachments);
+      }
+    },
+    [editingId, activeId, engine.edit, engine.send], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const onModel = useCallback((id: string) => set("model", id), [set]);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
@@ -172,7 +195,6 @@ export default function App() {
         onRename={store.rename}
         onDelete={onDelete}
         onDeleteAll={onDeleteAll}
-        onSettings={openSettings}
       />
 
       <main className="main">
@@ -214,7 +236,8 @@ export default function App() {
           streamingId={generating?.msgId ?? null}
           busy={!!generating}
           models={models}
-          onPick={onPick}
+          editingId={editingId}
+          onEdit={onEdit}
           onRegenerate={onRegenerate}
           onFeedback={onFeedback}
         />
@@ -227,8 +250,10 @@ export default function App() {
             disabledReason={notConfigured ? "Add an API key to start chatting" : cfgError ? "Server unavailable" : undefined}
             enterToSend={settings.enterToSend}
             limits={limits}
-            onSend={engine.send}
+            onSend={onSend}
             onStop={stop}
+            editing={!!editingId}
+            onCancelEdit={onCancelEdit}
           />
         </div>
       </main>
@@ -239,13 +264,7 @@ export default function App() {
             settings={settings}
             models={models}
             provider={cfg?.provider ?? null}
-            conversations={store.conversations}
             onSet={set}
-            onImport={store.importMany}
-            onClearAll={() => {
-              setSettingsOpen(false);
-              onDeleteAll();
-            }}
             onClose={() => setSettingsOpen(false)}
           />
         </Suspense>
