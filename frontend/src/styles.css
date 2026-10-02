@@ -325,7 +325,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 /* ---------- Tablet ---------- */
 @media (max-width: 1024px) {
   :root { --sidebar-w: 260px; }
-  .topbar-title { max-width: 26vw; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .topbar-title { max-width: none; text-align: center; }
 }
 
 /* ---------- Mobile ---------- */

@@ -18,7 +18,7 @@ export const TIERS: ModelTier[] = [
 ];
 
 const DEFAULTS: Record<ProviderId, Record<ModelTier["id"], string>> = {
-  gemini: { fast: "gemini-2.5-flash-lite", balanced: "gemini-2.5-flash", advanced: "gemini-2.5-pro" },
+  gemini: { fast: "gemini-flash-lite-latest", balanced: "gemini-3.5-flash", advanced: "gemini-pro-latest" },
   openai: { fast: "gpt-5-nano", balanced: "gpt-5-mini", advanced: "gpt-5" },
 };
 
