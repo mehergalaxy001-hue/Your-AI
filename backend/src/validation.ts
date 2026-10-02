@@ -22,6 +22,14 @@ const attachmentSchema = z.discriminatedUnion("kind", [
       .max(b64Len(L.maxPdfBytes), "PDF is too large"),
   }),
   z.object({
+    kind: z.literal("video"),
+    name: z.string().min(1).max(255),
+    data: z
+      .string()
+      .regex(/^data:video\/(mp4|webm|quicktime);base64,[A-Za-z0-9+/=]+$/, "Unsupported video format")
+      .max(b64Len(L.maxVideoBytes), "Video is too large"),
+  }),
+  z.object({
     kind: z.literal("text"),
     name: z.string().min(1).max(255),
     data: z.string().max(L.maxTextFileChars, "Text file is too large"),
@@ -37,6 +45,7 @@ const messageSchema = z.object({
 export const chatRequestSchema = z
   .object({
     model: z.string().min(1).max(40),
+    webSearch: z.boolean().optional(),
     messages: z.array(messageSchema).min(1, "No messages provided").max(L.maxMessages, "Conversation is too long"),
   })
   .refine((r) => r.messages.at(-1)?.role === "user", "The last message must be from the user")

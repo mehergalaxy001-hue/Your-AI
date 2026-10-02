@@ -33,3 +33,13 @@ mediaRouter.get("/media/:file", (req, res) => {
   if (req.query.download) res.setHeader("Content-Disposition", `attachment; filename="galaxy-ai-${req.params.file}"`);
   res.sendFile(p);
 });
+
+/** DELETE /api/media/:file — remove a generated file the user deleted. */
+mediaRouter.delete("/media/:file", (req, res) => {
+  const p = mediaPath(req.params.file);
+  if (!p) {
+    res.status(400).json({ error: { code: "invalid_file", message: "Invalid file." } });
+    return;
+  }
+  fs.rm(p, { force: true }, () => res.status(204).end());
+});

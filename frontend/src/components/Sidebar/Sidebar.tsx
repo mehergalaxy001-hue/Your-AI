@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import type { ConversationMeta } from "../../types";
 import { groupLabel } from "../../utils/format";
-import { ComposeIcon, EditIcon, SparkleIcon, Logo, SearchIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
+import { ComposeIcon, EditIcon, LibraryIcon, PhotoIcon, Logo, SearchIcon, SidebarIcon, TrashIcon, XIcon } from "../UI/Icons";
 
 interface Props {
   metas: ConversationMeta[];
@@ -14,8 +14,9 @@ interface Props {
   onRename: (id: string, title: string) => void;
   onDelete: (id: string, title: string) => void;
   onDeleteAll: () => void;
-  createActive: boolean;
-  onCreate: () => void;
+  view: "chat" | "images" | "library";
+  onImages: () => void;
+  onLibrary: () => void;
 }
 
 function SidebarImpl(p: Props) {
@@ -61,10 +62,6 @@ function SidebarImpl(p: Props) {
           <kbd className="kbd">Ctrl ⇧ O</kbd>
         </button>
 
-        <button className={`side-link create-link ${p.createActive ? "active" : ""}`} onClick={p.onCreate} aria-current={p.createActive ? "page" : undefined}>
-          <SparkleIcon width={16} height={16} /> Create
-        </button>
-
         <div className="search">
           <SearchIcon width={16} height={16} />
           <input
@@ -78,6 +75,15 @@ function SidebarImpl(p: Props) {
             <button className="icon-btn xs" onClick={() => setQuery("")} aria-label="Clear search"><XIcon width={14} height={14} /></button>
           )}
         </div>
+
+        <nav className="side-nav" aria-label="Workspace">
+          <button className={`side-link ${p.view === "images" ? "active" : ""}`} onClick={p.onImages} aria-current={p.view === "images" ? "page" : undefined}>
+            <PhotoIcon width={16} height={16} /> Images
+          </button>
+          <button className={`side-link ${p.view === "library" ? "active" : ""}`} onClick={p.onLibrary} aria-current={p.view === "library" ? "page" : undefined}>
+            <LibraryIcon width={16} height={16} /> Library
+          </button>
+        </nav>
 
         <nav className="history" aria-label="Recent conversations">
           {p.metas.length === 0 && (
@@ -108,7 +114,7 @@ function SidebarImpl(p: Props) {
                         aria-label="Conversation title"
                       />
                     ) : (
-                      <div className={`chat-item ${c.id === p.activeId && !p.createActive ? "active" : ""}`}>
+                      <div className={`chat-item ${c.id === p.activeId && p.view === "chat" ? "active" : ""}`}>
                         <button
                           className="chat-title"
                           onClick={() => p.onSelect(c.id)}

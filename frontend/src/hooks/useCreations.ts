@@ -28,7 +28,17 @@ export function useCreations() {
   useEffect(() => saveJSON({ items }, KEY), [items]);
 
   const add = useCallback((c: Creation) => setItems((xs) => [c, ...xs.filter((x) => x.id !== c.id)].slice(0, MAX)), []);
-  const remove = useCallback((id: string) => setItems((xs) => xs.filter((x) => x.id !== id)), []);
+  /** Remove from history and delete the stored file on the server. */
+  const remove = useCallback((id: string) => {
+    setItems((xs) => {
+      const c = xs.find((x) => x.id === id);
+      if (c) void fetch(c.resultUrl, { method: "DELETE" }).catch(() => undefined);
+      return xs.filter((x) => x.id !== id);
+    });
+  }, []);
+  const setSaved = useCallback((id: string, saved: boolean) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, saved } : x))), []);
 
-  return { items, add, remove };
+  return { items, add, remove, setSaved };
 }
+
+export type CreationStore = ReturnType<typeof useCreations>;

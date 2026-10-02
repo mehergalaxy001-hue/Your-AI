@@ -9,6 +9,8 @@ export interface Creation {
   createdAt: number;
   resultUrl: string;
   mime?: string;
+  /** Saved to the Library. */
+  saved?: boolean;
 }
 
 export interface MediaConfig {

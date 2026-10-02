@@ -1,5 +1,5 @@
 export type Role = "user" | "assistant";
-export type AttachmentKind = "image" | "text" | "pdf";
+export type AttachmentKind = "image" | "video" | "text" | "pdf";
 
 export interface Attachment {
   id: string;
@@ -27,6 +27,15 @@ export interface Message {
   error?: MessageError;
   stopped?: boolean;
   feedback?: "up" | "down";
+  /** User message was sent with web search enabled. */
+  webSearch?: boolean;
+  /** Web pages the answer was grounded on (from the search provider). */
+  sources?: Source[];
+}
+
+export interface Source {
+  title: string;
+  url: string;
 }
 
 export interface Conversation {
@@ -56,6 +65,7 @@ export interface Limits {
   maxAttachments: number;
   maxImageBytes: number;
   maxPdfBytes: number;
+  maxVideoBytes: number;
   maxTextFileChars: number;
 }
 

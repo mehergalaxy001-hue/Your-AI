@@ -4,7 +4,7 @@ import { titleFrom, uid } from "./format";
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const str = (x: unknown, max = 1_000_000): string | undefined => (typeof x === "string" ? x.slice(0, max) : undefined);
 const num = (x: unknown): number | undefined => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
-const KINDS: AttachmentKind[] = ["image", "text", "pdf"];
+const KINDS: AttachmentKind[] = ["image", "video", "text", "pdf"];
 
 function normalizeAttachment(x: unknown): Attachment | null {
   if (!isObj(x)) return null;
@@ -14,7 +14,7 @@ function normalizeAttachment(x: unknown): Attachment | null {
   const data = str(x.data, 20_000_000);
   // Only allow safe data URLs for binary kinds.
   const safeData =
-    data && (kind === "text" || (kind === "image" && /^data:image\/(png|jpeg|webp|gif);base64,/.test(data)) || (kind === "pdf" && data.startsWith("data:application/pdf;base64,")))
+    data && (kind === "text" || (kind === "image" && /^data:image\/(png|jpeg|webp|gif);base64,/.test(data)) || (kind === "pdf" && data.startsWith("data:application/pdf;base64,")) || (kind === "video" && /^data:video\/(mp4|webm|quicktime);base64,/.test(data)))
       ? data
       : undefined;
   return { id: str(x.id, 100) ?? uid(), name, mime: str(x.mime, 100) ?? str(x.type, 100) ?? "", size: num(x.size) ?? 0, kind, ...(safeData ? { data: safeData } : {}) };
@@ -40,6 +40,14 @@ function normalizeMessage(x: unknown): Message | null {
     m.error = { code: str(x.error.code, 60) ?? "error", message: x.error.message.slice(0, 500) };
   if (x.stopped === true) m.stopped = true;
   if (x.feedback === "up" || x.feedback === "down") m.feedback = x.feedback;
+  if (x.webSearch === true) m.webSearch = true;
+  if (Array.isArray(x.sources)) {
+    const sources = x.sources
+      .filter((s): s is { title: string; url: string } => isObj(s) && typeof s.url === "string" && /^https?:\/\//.test(s.url) && typeof s.title === "string")
+      .slice(0, 10)
+      .map((s) => ({ title: s.title.slice(0, 200), url: s.url.slice(0, 2000) }));
+    if (sources.length) m.sources = sources;
+  }
   return m;
 }
 

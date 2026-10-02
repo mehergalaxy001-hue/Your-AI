@@ -6,10 +6,20 @@ export interface StreamParams {
   messages: ChatMessage[];
   signal: AbortSignal;
   onDelta: (text: string) => void;
+  /** Ground the answer with live web search (provider must support it). */
+  webSearch?: boolean;
+  onSources?: (sources: Source[]) => void;
+}
+
+export interface Source {
+  title: string;
+  url: string;
 }
 
 export interface ChatProvider {
   readonly id: string;
+  /** Capabilities beyond plain text chat. */
+  readonly supports: { webSearch: boolean; video: boolean };
   stream(params: StreamParams): Promise<void>;
 }
 

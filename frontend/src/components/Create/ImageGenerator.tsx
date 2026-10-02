@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AspectRatio, Creation, MediaConfig } from "../../types/media";
 import { generateImage } from "../../services/imageGeneration";
 import { MediaApiError } from "../../services/media";
@@ -12,17 +12,28 @@ interface Props {
   maxChars: number;
   current: Creation | null;
   onCreated: (c: Creation) => void;
+  /** Prefill request from elsewhere (e.g. the composer's "Create image"). */
+  request: { prompt?: string; nonce: number } | null;
+  onDelete?: () => void;
+  onToggleSave?: () => void;
 }
 
 const LABELS: Record<AspectRatio, string> = { square: "Square", portrait: "Portrait", landscape: "Landscape" };
 
-export function ImageGenerator({ caps, maxChars, current, onCreated }: Props) {
+export function ImageGenerator({ caps, maxChars, current, onCreated, request, onDelete, onToggleSave }: Props) {
   const [prompt, setPrompt] = useState("");
   const [aspect, setAspect] = useState<AspectRatio>(caps.aspectRatios[0] ?? "square");
   const [quality, setQuality] = useState<"standard" | "high">(caps.qualities[0] ?? "standard");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastPrompt = useRef("");
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!request) return;
+    if (request.prompt) setPrompt(request.prompt);
+    requestAnimationFrame(() => promptRef.current?.focus());
+  }, [request]);
 
   const run = async (p: string) => {
     const text = p.trim();
@@ -52,6 +63,7 @@ export function ImageGenerator({ caps, maxChars, current, onCreated }: Props) {
       <label className="gen-label" htmlFor="image-prompt">Prompt</label>
       <textarea
         id="image-prompt"
+        ref={promptRef}
         className="gen-prompt"
         value={prompt}
         maxLength={maxChars}
@@ -112,7 +124,7 @@ export function ImageGenerator({ caps, maxChars, current, onCreated }: Props) {
         </div>
       )}
 
-      {!loading && current && <MediaPreview creation={current} busy={loading} onGenerateAgain={() => void run(current.prompt)} />}
+      {!loading && current && <MediaPreview creation={current} busy={loading} onGenerateAgain={() => void run(current.prompt)} onDelete={onDelete} onToggleSave={onToggleSave} />}
     </div>
   );
 }

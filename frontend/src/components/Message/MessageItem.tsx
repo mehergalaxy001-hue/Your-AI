@@ -2,7 +2,7 @@ import { lazy, memo, Suspense, useState } from "react";
 import type { Message, ModelOption } from "../../types";
 import { useCopy } from "../../hooks/useCopy";
 import { formatBytes } from "../../utils/format";
-import { AlertIcon, CheckIcon, CopyIcon, EditIcon, FileIcon, Logo, MoreIcon, RefreshIcon, ThumbDownIcon, ThumbUpIcon } from "../UI/Icons";
+import { AlertIcon, CheckIcon, CopyIcon, EditIcon, FileIcon, GlobeIcon, Logo, MoreIcon, RefreshIcon, ThumbDownIcon, ThumbUpIcon } from "../UI/Icons";
 
 // Code-split the markdown/highlighting bundle, but start fetching it immediately.
 const loadMarkdown = () => import("./Markdown");
@@ -37,16 +37,19 @@ function MessageItemImpl({ message, streaming, canRegenerate, busy, models, edit
             {message.attachments.map((a) =>
               a.kind === "image" && a.data ? (
                 <img key={a.id} src={a.data} alt={a.name} className="msg-image" loading="lazy" />
+              ) : a.kind === "video" && a.data ? (
+                <video key={a.id} src={a.data} className="msg-image" controls playsInline preload="metadata" aria-label={a.name} />
               ) : (
                 <div key={a.id} className="file-chip">
                   <FileIcon width={16} height={16} />
                   <span className="file-name">{a.name}</span>
-                  <span className="muted">{a.kind === "pdf" ? "PDF" : a.kind === "text" ? "Text" : "Image"} · {a.data ? formatBytes(a.size) : "not stored"}</span>
+                  <span className="muted">{a.kind === "pdf" ? "PDF" : a.kind === "text" ? "Text" : a.kind === "video" ? "Video" : "Image"} · {a.data ? formatBytes(a.size) : "not stored"}</span>
                 </div>
               ),
             )}
           </div>
         )}
+        {message.webSearch && <span className="tag search-tag"><GlobeIcon width={12} height={12} /> Web search</span>}
         {message.content && <div className="bubble">{message.content}</div>}
         <div className="user-actions">
           {editing && <span className="tag">Editing</span>}
@@ -89,6 +92,20 @@ function MessageItemImpl({ message, streaming, canRegenerate, busy, models, edit
           </Suspense>
         ) : null}
         {streaming && message.content && <span className="caret" aria-hidden />}
+        {!!message.sources?.length && (
+          <div className="sources" aria-label="Sources">
+            <span className="sources-label">Sources</span>
+            <ol>
+              {message.sources.map((src, i) => (
+                <li key={src.url}>
+                  <a href={src.url} target="_blank" rel="noopener noreferrer nofollow" title={src.url}>
+                    <span className="source-n">{i + 1}</span> {src.title}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
         {message.error && (
           <div className="error-box" role="alert">
             <AlertIcon width={16} height={16} />

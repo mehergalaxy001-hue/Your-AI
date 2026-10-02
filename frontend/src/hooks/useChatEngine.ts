@@ -43,6 +43,9 @@ export function useChatEngine(store: ConversationStore, model: string, limits: L
           model: S.current.model,
           messages: buildContext(history, S.current.limits),
           signal: ctrl.signal,
+          // Web search applies to the user turn it was enabled for (also on regenerate/edit).
+          webSearch: history.at(-1)?.webSearch === true,
+          onSources: (sources) => S.current.store.patchMessage(convId, bot.id, (m) => ({ ...m, sources })),
           onDelta: (d) => {
             pending += d;
             if (!raf) raf = requestAnimationFrame(flush);
@@ -71,10 +74,14 @@ export function useChatEngine(store: ConversationStore, model: string, limits: L
   );
 
   const send = useCallback(
-    (text: string, attachments: Attachment[]) => {
+    (text: string, attachments: Attachment[], opts: { webSearch?: boolean } = {}) => {
       if (busy.current || !S.current.model) return;
       busy.current = true;
-      const user: Message = { id: uid(), role: "user", content: text, timestamp: Date.now(), ...(attachments.length ? { attachments } : {}) };
+      const user: Message = {
+        id: uid(), role: "user", content: text, timestamp: Date.now(),
+        ...(attachments.length ? { attachments } : {}),
+        ...(opts.webSearch ? { webSearch: true } : {}),
+      };
       const bot: Message = { id: uid(), role: "assistant", content: "", timestamp: Date.now(), model: S.current.model };
 
       let convId = S.current.store.activeId;

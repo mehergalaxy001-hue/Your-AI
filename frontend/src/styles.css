@@ -373,6 +373,52 @@ ul { list-style: none; margin: 0; padding: 0; }
 .about h3 { margin: 0 0 2px; font-size: 14.5px; }
 .about p { margin: 0; font-size: 13px; color: var(--muted); }
 
+
+/* ---------- "+" menu ---------- */
+.plus { position: static; }
+.composer { position: relative; }
+.plus-trigger.on { background: var(--hover); color: var(--text); }
+.plus-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 40; width: 236px; padding: 6px;
+  background: var(--raised); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 2px; animation: pop 0.12s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.plus-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; min-height: 42px; border-radius: 10px; font-size: 14.5px; text-align: left; color: var(--text); }
+.plus-item svg { color: var(--muted); flex-shrink: 0; }
+.plus-item:hover, .plus-item:focus-visible { background: var(--hover); outline: none; }
+.plus-item .plus-check { margin-left: auto; color: var(--accent); }
+.mode-chips { display: flex; gap: 6px; padding: 2px 0 6px; }
+.mode-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.mode-chip button { display: inline-flex; padding: 2px; border-radius: 50%; color: inherit; }
+.mode-chip button:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.pending-item.video { width: 64px; height: 64px; }
+.pending-item.video video { width: 100%; height: 100%; object-fit: cover; border-radius: 11px; }
+.search-tag { display: inline-flex; align-items: center; gap: 4px; }
+.sources { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.sources-label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.sources ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.sources a { display: inline-flex; align-items: center; gap: 6px; max-width: 280px; padding: 4px 10px 4px 4px; border: 1px solid var(--border); border-radius: 999px; font-size: 12.5px; color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sources a:hover { background: var(--hover); }
+.source-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--hover); font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.btn.on { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- Sidebar nav / Library ---------- */
+.side-nav { display: flex; flex-direction: column; gap: 2px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.tab-count { font-size: 11.5px; color: var(--muted); margin-left: 2px; }
+.library-empty { text-align: center; padding: 48px 16px; }
+.library-empty p { margin: 0 0 4px; font-weight: 600; }
+.library-empty span { color: var(--muted); font-size: 14px; }
+.library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.lib-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lib-thumb { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: var(--code-bg); display: block; }
+.lib-thumb img, .lib-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lib-file { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: var(--muted); }
+.lib-meta { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.lib-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-actions { display: flex; align-items: center; gap: 2px; margin-top: -4px; }
+.lib-actions .link-btn { margin-right: auto; font-size: 13px; }
+
 /* ---------- Tablet ---------- */
 @media (max-width: 1024px) {
   :root { --sidebar-w: 260px; }
@@ -419,6 +465,8 @@ ul { list-style: none; margin: 0; padding: 0; }
   .gen-prompt { font-size: 16px; }
   .history-strip ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .thumb-remove { opacity: 1; }
+  .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .plus-menu { width: min(260px, calc(100vw - 40px)); }
 }
 /* Touch devices: no hover, so show a compact toggle that reveals Copy / Edit. */
 @media (hover: none) {

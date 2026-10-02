@@ -20,6 +20,7 @@ export async function fetchConfig(): Promise<ServerConfig> {
 
 type WireAttachment = { kind: Attachment["kind"]; name: string; data: string };
 export type WireMessage = { role: Message["role"]; content: string; attachments?: WireAttachment[] };
+export type { Source } from "../types";
 
 /**
  * Build the context sent to the model: drop failed/empty turns, then keep
@@ -51,7 +52,8 @@ export function buildContext(messages: Message[], limits: Limits): WireMessage[]
   return out;
 }
 
-const IDLE_TIMEOUT_MS = 60_000;
+// Heartbeat comments do not count as activity, so a silent provider can never hang the UI.
+const IDLE_TIMEOUT_MS = 90_000;
 
 /** POST /api/chat and invoke onDelta for every streamed chunk. Never hangs forever. */
 export async function streamChat(opts: {
@@ -59,6 +61,8 @@ export async function streamChat(opts: {
   messages: WireMessage[];
   signal: AbortSignal;
   onDelta: (text: string) => void;
+  webSearch?: boolean;
+  onSources?: (sources: { title: string; url: string }[]) => void;
 }): Promise<void> {
   const ctrl = new AbortController();
   let timedOut = false;
@@ -80,7 +84,7 @@ export async function streamChat(opts: {
       res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: opts.model, messages: opts.messages }),
+        body: JSON.stringify({ model: opts.model, messages: opts.messages, ...(opts.webSearch ? { webSearch: true } : {}) }),
         signal: ctrl.signal,
       });
     } catch (e) {
@@ -106,7 +110,6 @@ export async function streamChat(opts: {
       while (!done) {
         const chunk = await reader.read();
         if (chunk.done) break;
-        arm();
         buffer += decoder.decode(chunk.value, { stream: true });
         let idx: number;
         while ((idx = buffer.indexOf("\n\n")) !== -1) {
@@ -114,7 +117,8 @@ export async function streamChat(opts: {
           buffer = buffer.slice(idx + 2);
           const line = raw.split("\n").find((l) => l.startsWith("data:"));
           if (!line) continue; // heartbeat comment
-          let evt: { type?: string; text?: string; code?: string; message?: string };
+          arm();
+          let evt: { type?: string; text?: string; code?: string; message?: string; sources?: { title: string; url: string }[] };
           try {
             evt = JSON.parse(line.slice(5).trim());
           } catch {
@@ -122,6 +126,7 @@ export async function streamChat(opts: {
           }
           if (evt.type === "delta" && evt.text) opts.onDelta(evt.text);
           else if (evt.type === "error") throw new ApiError(evt.message ?? "The AI returned an error.", evt.code ?? "error");
+          else if (evt.type === "sources" && Array.isArray(evt.sources)) opts.onSources?.(evt.sources);
           else if (evt.type === "done") done = true;
         }
       }

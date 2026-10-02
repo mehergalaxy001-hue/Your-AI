@@ -10,13 +10,15 @@ import { ChatView } from "./components/Chat/ChatView";
 import { Composer, type ComposerHandle } from "./components/Composer/Composer";
 import { ConfirmDialog, type ConfirmRequest } from "./components/UI/Modal";
 import { AlertIcon, Logo } from "./components/UI/Icons";
-import { CreateView } from "./components/Create/CreateView";
+import { CreateView, type CreateRequest } from "./components/Create/CreateView";
+import { LibraryView } from "./components/Library/LibraryView";
+import { useCreations } from "./hooks/useCreations";
 
 const SettingsModal = lazy(() => import("./components/Settings/SettingsModal"));
 
 const FALLBACK_LIMITS: Limits = {
   maxMessages: 80, maxMessageChars: 32_000, maxTotalChars: 240_000, maxAttachments: 5,
-  maxImageBytes: 5 * 1024 * 1024, maxPdfBytes: 10 * 1024 * 1024, maxTextFileChars: 120_000,
+  maxImageBytes: 5 * 1024 * 1024, maxPdfBytes: 10 * 1024 * 1024, maxVideoBytes: 15 * 1024 * 1024, maxTextFileChars: 120_000,
 };
 const mobileQuery = "(max-width: 768px)";
 const isMobile = () => window.matchMedia(mobileQuery).matches;
@@ -29,8 +31,10 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
-  const [view, setView] = useState<"chat" | "create">("chat");
+  const [view, setView] = useState<"chat" | "images" | "library">("chat");
   const [createMounted, setCreateMounted] = useState(false);
+  const [createRequest, setCreateRequest] = useState<CreateRequest | null>(null);
+  const creations = useCreations();
   const composer = useRef<ComposerHandle>(null);
 
   const loadConfig = useCallback(() => {
@@ -154,12 +158,12 @@ export default function App() {
   );
   const onCancelEdit = useCallback(() => setEditingId(null), []);
   const onSend = useCallback(
-    (text: string, attachments: Attachment[]) => {
+    (text: string, attachments: Attachment[], opts: { webSearch?: boolean }) => {
       if (editingId && activeId) {
         engine.edit(activeId, editingId, text);
         setEditingId(null);
       } else {
-        engine.send(text, attachments);
+        engine.send(text, attachments, opts);
       }
     },
     [editingId, activeId, engine.edit, engine.send], // eslint-disable-line react-hooks/exhaustive-deps
@@ -168,11 +172,22 @@ export default function App() {
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
-  const openCreate = useCallback(() => {
-    setView("create");
+  const openImages = useCallback(() => {
+    setView("images");
     setCreateMounted(true);
+    setCreateRequest({ mode: "image", nonce: Date.now() });
     closeOnMobile();
   }, [closeOnMobile]);
+  const openLibrary = useCallback(() => {
+    setView("library");
+    closeOnMobile();
+  }, [closeOnMobile]);
+  // "+" → Create image: reuse the Images workspace, prefilled with the composer draft.
+  const onCreateImage = useCallback((prompt: string) => {
+    setView("images");
+    setCreateMounted(true);
+    setCreateRequest({ mode: "image", prompt, nonce: Date.now() });
+  }, []);
 
   const notConfigured = !!cfg && !cfg.configured;
   const models = useMemo(() => cfg?.models ?? [], [cfg]);
@@ -205,13 +220,27 @@ export default function App() {
         onRename={store.rename}
         onDelete={onDelete}
         onDeleteAll={onDeleteAll}
-        createActive={view === "create"}
-        onCreate={openCreate}
+        view={view}
+        onImages={openImages}
+        onLibrary={openLibrary}
       />
 
       {createMounted && (
-        <div className="view" hidden={view !== "create"}>
-          <CreateView sidebarOpen={sidebarOpen} onOpenSidebar={openSidebar} />
+        <div className="view" hidden={view !== "images"}>
+          <CreateView sidebarOpen={sidebarOpen} onOpenSidebar={openSidebar} creations={creations} request={createRequest} />
+        </div>
+      )}
+      {view === "library" && (
+        <div className="view">
+          <LibraryView
+            sidebarOpen={sidebarOpen}
+            onOpenSidebar={openSidebar}
+            creations={creations.items}
+            conversations={store.conversations}
+            onOpenChat={onSelect}
+            onRemoveCreation={creations.remove}
+            onToggleSave={creations.setSaved}
+          />
         </div>
       )}
 
@@ -269,6 +298,7 @@ export default function App() {
             enterToSend={settings.enterToSend}
             limits={limits}
             onSend={onSend}
+            onCreateImage={onCreateImage}
             onStop={stop}
             editing={!!editingId}
             onCancelEdit={onCancelEdit}

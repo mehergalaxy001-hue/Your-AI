@@ -1,16 +1,18 @@
 import { memo, useState } from "react";
 import type { Creation } from "../../types/media";
 import { useCopy } from "../../hooks/useCopy";
-import { AlertIcon, CheckIcon, CopyIcon, DownloadIcon, RefreshIcon } from "../UI/Icons";
+import { AlertIcon, BookmarkIcon, CheckIcon, CopyIcon, DownloadIcon, RefreshIcon, TrashIcon } from "../UI/Icons";
 
 interface Props {
   creation: Creation;
   onGenerateAgain?: () => void;
   busy?: boolean;
+  onDelete?: () => void;
+  onToggleSave?: () => void;
 }
 
 /** Large preview of a generated image/video with real Download / Copy URL actions. */
-function MediaPreviewImpl({ creation, onGenerateAgain, busy }: Props) {
+function MediaPreviewImpl({ creation, onGenerateAgain, busy, onDelete, onToggleSave }: Props) {
   const [expired, setExpired] = useState(false);
   const [unplayable, setUnplayable] = useState(false);
   // A media error can mean the file expired (404) or the browser can't decode it.
@@ -55,6 +57,16 @@ function MediaPreviewImpl({ creation, onGenerateAgain, busy }: Props) {
         {!expired && creation.type === "image" && (
           <button className="btn" onClick={() => copy(absoluteUrl)}>
             {copied ? <CheckIcon width={16} height={16} /> : <CopyIcon width={16} height={16} />} {copied ? "Copied" : "Copy image URL"}
+          </button>
+        )}
+        {!expired && onToggleSave && (
+          <button className={`btn ${creation.saved ? "on" : ""}`} onClick={onToggleSave} aria-pressed={!!creation.saved}>
+            {creation.saved ? <CheckIcon width={16} height={16} /> : <BookmarkIcon width={16} height={16} />} {creation.saved ? "Saved to Library" : "Save to Library"}
+          </button>
+        )}
+        {onDelete && (
+          <button className="btn danger" onClick={onDelete}>
+            <TrashIcon width={16} height={16} /> Delete
           </button>
         )}
       </div>

@@ -15,12 +15,14 @@ interface Props {
   maxUploadBytes: number;
   current: Creation | null;
   onCreated: (c: Creation) => void;
+  onDelete?: () => void;
+  onToggleSave?: () => void;
 }
 
 const POLL_MS = 6000;
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-export function VideoGenerator({ caps, maxChars, maxUploadBytes, current, onCreated }: Props) {
+export function VideoGenerator({ caps, maxChars, maxUploadBytes, current, onCreated, onDelete, onToggleSave }: Props) {
   const [prompt, setPrompt] = useState("");
   const [aspect, setAspect] = useState<Ratio>(caps.aspectRatios[0] ?? "landscape");
   const [image, setImage] = useState<{ dataUrl: string; name: string; size: number } | null>(null);
@@ -169,7 +171,7 @@ export function VideoGenerator({ caps, maxChars, maxUploadBytes, current, onCrea
         </div>
       )}
 
-      {!busy && current && <MediaPreview creation={current} onGenerateAgain={() => void run(current.prompt, null)} />}
+      {!busy && current && <MediaPreview creation={current} onGenerateAgain={() => void run(current.prompt, null)} onDelete={onDelete} onToggleSave={onToggleSave} />}
     </div>
   );
 }

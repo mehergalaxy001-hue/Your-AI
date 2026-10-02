@@ -1,9 +1,10 @@
 import { forwardRef, memo, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent } from "react";
 import type { Attachment, Limits } from "../../types";
-import { ACCEPT, readAttachment } from "../../utils/attachments";
+import { ACCEPT_FILES, ACCEPT_MEDIA, readAttachment } from "../../utils/attachments";
 import { formatBytes } from "../../utils/format";
 import { useSpeechRecognition } from "../../hooks/useSpeechRecognition";
-import { FileIcon, MicIcon, PaperclipIcon, SendIcon, StopIcon, XIcon } from "../UI/Icons";
+import { FileIcon, GlobeIcon, MicIcon, SendIcon, StopIcon, XIcon } from "../UI/Icons";
+import { PlusMenu } from "./PlusMenu";
 
 export interface ComposerHandle {
   focus: () => void;
@@ -16,7 +17,9 @@ interface Props {
   disabledReason?: string;
   enterToSend: boolean;
   limits: Limits;
-  onSend: (text: string, attachments: Attachment[]) => void;
+  onSend: (text: string, attachments: Attachment[], opts: { webSearch?: boolean }) => void;
+  /** Open the image-creation workspace, optionally prefilled with the current draft. */
+  onCreateImage: (prompt: string) => void;
   onStop: () => void;
   /** True while an earlier user message is being edited. */
   editing: boolean;
@@ -32,6 +35,8 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
   const [reading, setReading] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const mediaInput = useRef<HTMLInputElement>(null);
+  const [webSearch, setWebSearch] = useState(false);
   const voiceBase = useRef("");
 
   const speech = useSpeechRecognition((transcript) => {
@@ -72,7 +77,8 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
   const submit = () => {
     if (!canSend) return;
     if (speech.listening) speech.stop();
-    p.onSend(text.trim(), p.editing ? [] : files);
+    p.onSend(text.trim(), p.editing ? [] : files, { webSearch });
+    setWebSearch(false); // applies to the next request only
     setText("");
     if (!p.editing) setFiles([]);
     setNotice(null);
@@ -117,6 +123,7 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
     setNotice(errors.length ? errors.join(" ") : null);
     setReading(false);
     if (fileInput.current) fileInput.current.value = "";
+    if (mediaInput.current) mediaInput.current.value = "";
   };
 
   const toggleVoice = () => {
@@ -156,12 +163,20 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
             <button type="button" className="link-btn" onClick={cancelEdit}>Cancel</button>
           </div>
         )}
+        {webSearch && (
+          <div className="mode-chips">
+            <span className="mode-chip">
+              <GlobeIcon width={14} height={14} /> Web search
+              <button type="button" onClick={() => setWebSearch(false)} aria-label="Turn off web search"><XIcon width={12} height={12} /></button>
+            </span>
+          </div>
+        )}
         {!p.editing && files.length > 0 && (
           <ul className="pending" aria-label="Attachments to send">
             {files.map((f) => (
               <li key={f.id} className={`pending-item ${f.kind}`}>
-                {f.kind === "image" ? <img src={f.data} alt={f.name} /> : <FileIcon width={18} height={18} />}
-                {f.kind !== "image" && (
+                {f.kind === "image" ? <img src={f.data} alt={f.name} /> : f.kind === "video" ? <video src={f.data} muted playsInline preload="metadata" aria-label={f.name} /> : <FileIcon width={18} height={18} />}
+                {f.kind !== "image" && f.kind !== "video" && (
                   <div className="pending-text">
                     <span className="file-name">{f.name}</span>
                     <span className="muted">{f.kind === "pdf" ? "PDF" : "Text"} · {formatBytes(f.size)}</span>
@@ -192,17 +207,19 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
           enterKeyHint={p.enterToSend ? "send" : "enter"}
         />
         <div className="composer-bar">
-          <input ref={fileInput} type="file" multiple accept={ACCEPT} hidden onChange={(e) => void addFiles(e.target.files)} />
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => fileInput.current?.click()}
-            aria-label="Attach files"
-            title="Attach images, PDFs or text files"
+          <input ref={mediaInput} type="file" multiple accept={ACCEPT_MEDIA} hidden onChange={(e) => void addFiles(e.target.files)} />
+          <input ref={fileInput} type="file" multiple accept={ACCEPT_FILES} hidden onChange={(e) => void addFiles(e.target.files)} />
+          <PlusMenu
             disabled={p.generating || reading || p.editing}
-          >
-            <PaperclipIcon />
-          </button>
+            webSearch={webSearch}
+            onPhotos={() => mediaInput.current?.click()}
+            onFiles={() => fileInput.current?.click()}
+            onWebSearch={() => {
+              setWebSearch((w) => !w);
+              ta.current?.focus();
+            }}
+            onCreateImage={() => p.onCreateImage(text.trim())}
+          />
           <button
             type="button"
             className={`icon-btn ${speech.listening ? "recording" : ""} ${speech.supported ? "" : "unavailable"}`}
@@ -229,7 +246,7 @@ const ComposerImpl = forwardRef<ComposerHandle, Props>(function Composer(p, ref)
         </div>
       </form>
       <p className="disclaimer" id="composer-hint">
-        Galaxy AI can make mistakes. Check important info. · {p.enterToSend ? "Enter to send, Shift+Enter for a new line" : "Ctrl/⌘+Enter to send"}
+        Galaxy AI can make mistakes. Please check again.
       </p>
     </div>
   );

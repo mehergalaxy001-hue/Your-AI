@@ -43,6 +43,7 @@ export const config = {
     maxAttachments: 5,
     maxImageBytes: 5 * 1024 * 1024,
     maxPdfBytes: 10 * 1024 * 1024,
+    maxVideoBytes: 15 * 1024 * 1024,
     maxTextFileChars: 120_000,
   },
 };

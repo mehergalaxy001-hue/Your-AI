@@ -8,6 +8,7 @@ export function createOpenAIProvider(apiKey: string, baseURL?: string): ChatProv
 
   return {
     id: "openai",
+    supports: { webSearch: false, video: false },
     async stream({ model, system, messages, signal, onDelta }: StreamParams) {
       const out: ChatCompletionMessageParam[] = [{ role: "system", content: system }];
       for (const m of messages) {

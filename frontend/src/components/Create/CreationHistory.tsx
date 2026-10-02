@@ -3,6 +3,7 @@ import type { Creation } from "../../types/media";
 import { TrashIcon } from "../UI/Icons";
 
 interface Props {
+  title: string;
   items: Creation[];
   activeId: string | null;
   onOpen: (c: Creation) => void;
@@ -10,11 +11,11 @@ interface Props {
 }
 
 /** Recent creations (stored locally as metadata + server URL). */
-function CreationHistoryImpl({ items, activeId, onOpen, onRemove }: Props) {
+function CreationHistoryImpl({ title, items, activeId, onOpen, onRemove }: Props) {
   if (!items.length) return null;
   return (
     <section className="history-strip" aria-label="Recent creations">
-      <h3 className="gen-label">Recent</h3>
+      <h3 className="gen-label">{title}</h3>
       <ul>
         {items.map((c) => (
           <li key={c.id} className={c.id === activeId ? "active" : ""}>
@@ -26,7 +27,7 @@ function CreationHistoryImpl({ items, activeId, onOpen, onRemove }: Props) {
               )}
               <span className="thumb-tag">{c.type === "image" ? "Image" : "Video"}</span>
             </button>
-            <button className="icon-btn xs thumb-remove" onClick={() => onRemove(c.id)} aria-label="Remove from history">
+            <button className="icon-btn xs thumb-remove" onClick={() => onRemove(c.id)} aria-label="Delete">
               <TrashIcon width={12} height={12} />
             </button>
           </li>
