@@ -1,10 +1,10 @@
 // Verifies the Firebase Web API key against Google's Identity Toolkit (Firebase Auth) API.
-// Usage: npm run check:firebase   (reads VITE_FIREBASE_API_KEY from frontend/.env or the environment)
+// Usage: npm run check:firebase   (checks the apiKey in src/lib/firebase.ts)
 import fs from "node:fs";
 const envFile = new URL("../.env", import.meta.url);
 const fromFile = fs.existsSync(envFile) ? /^VITE_FIREBASE_API_KEY=(.*)$/m.exec(fs.readFileSync(envFile, "utf8"))?.[1]?.trim() : "";
 const src = fs.readFileSync(new URL("../src/lib/firebase.ts", import.meta.url), "utf8");
-const fallback = /VITE_FIREBASE_API_KEY \|\| "([^"]+)"/.exec(src)?.[1];
+const fallback = /apiKey: "([^"]+)"/.exec(src)?.[1];
 const key = process.env.VITE_FIREBASE_API_KEY || fromFile || fallback;
 const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${encodeURIComponent(key)}`, {
   method: "POST",
